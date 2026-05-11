@@ -74,6 +74,15 @@ public class GlobalException {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(restResponse);
     }
 
+    @ExceptionHandler(value = BusinessException.class)
+    public ResponseEntity<RestResponse<Object>> handleBusinessException(BusinessException ex) {
+        RestResponse<Object> restResponse = new RestResponse<>();
+        restResponse.setStatusCode(ex.getStatus().value());
+        restResponse.setError(ex.getStatus().getReasonPhrase());
+        restResponse.setMessage(ex.getMessage());
+        return ResponseEntity.status(ex.getStatus()).body(restResponse);
+    }
+
     @ExceptionHandler(value = NoSuchElementException.class)
     public ResponseEntity<RestResponse<Object>> handleNoSuchElementException(NoSuchElementException ex) {
         RestResponse<Object> restResponse = new RestResponse<>();

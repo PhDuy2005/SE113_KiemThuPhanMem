@@ -50,7 +50,7 @@ public class SecurityConfiguration {
                 return jwtDecoder.decode(token);
             } catch (Exception e) {
                 System.out.println(">>>> JWT error: " + e.getMessage());
-                System.out.println(token);
+                // System.out.println(token);
                 throw e;
             }
         };
@@ -104,7 +104,11 @@ public class SecurityConfiguration {
                 "/",
                 "/api/v1/auth/login", // Đăng nhập
                 "/api/v1/auth/refresh", // Refresh token
-                "/api/v1/auth/register", // Đăng ký (nếu có)
+                "/api/v1/auth/register", // Đăng ký
+                "/api/v1/auth/verify", // Xác thực email
+                "/api/v1/auth/forgot-password", // Quên mật khẩu
+                "/api/v1/auth/reset-password", // Đặt lại mật khẩu
+                "/api/v1/auth/reset-password/validate", // Kiểm tra reset token
 
                 // Actuator endpoints (monitoring)
                 "/actuator/**",
@@ -127,10 +131,7 @@ public class SecurityConfiguration {
                                 // Cho phép các endpoints công khai
                                 .requestMatchers(whiteList).permitAll()
                                 // Tất cả endpoints khác yêu cầu authentication và sẽ kiểm tra permissions
-                                // .anyRequest().authenticated())
-                                // .requestMatchers(org.springframework.http.HttpMethod.OPTIONS,
-                                // "/**").permitAll()
-                                .anyRequest().permitAll())
+                                .anyRequest().authenticated())
                 .cors(Customizer.withDefaults())
                 .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))

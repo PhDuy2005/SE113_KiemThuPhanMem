@@ -40,6 +40,8 @@ public class User {
 
     private String name;
 
+    private String phoneNumber;
+
     @NotBlank(message = "Không được để trống email")
     private String email;
 
@@ -51,6 +53,16 @@ public class User {
 
     @Min(value = 0)
     private Integer failedLoginAttempts;
+
+    private Instant lastFailedAt;
+
+    private Instant lockedUntil;
+
+    private String verificationToken;
+
+    private String resetPasswordToken;
+
+    private Instant resetPasswordTokenExpiresAt;
 
     @Column(columnDefinition = "MEDIUMTEXT")
     private String refreshToken;
@@ -77,6 +89,9 @@ public class User {
     protected void onCreate() {
         if (id == null) {
             id = generateUUIDv7();
+        }
+        if (failedLoginAttempts == null) {
+            failedLoginAttempts = 0;
         }
 
         createdAt = Instant.now();

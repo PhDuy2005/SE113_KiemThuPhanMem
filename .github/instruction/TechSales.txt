@@ -1,0 +1,311 @@
+Enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+}
+
+Table User {
+  id UUID [pk]
+  email varchar [unique, not null]
+  password varchar [not null]
+  status UserStatus [not null] // PENDING, ACTIVE, BLOCKED
+  failed_login_attempts int [default: 0, not null]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp
+
+  last_failed_at timestamp
+  locked_until timestamp
+}
+
+Table UserProfile {
+  user_id UUID [pk, ref: > User.id]
+  full_name varchar [not null]
+  phone varchar [not null]
+  avatar_url varchar 
+  date_of_birth date 
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp
+}
+
+Table Role {
+  id UUID [pk]
+  name varchar [unique, not null] // ADMIN, STAFF, CUSTOMER
+  description varchar [not null]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table Permission {
+  id UUID [pk]
+  code varchar [unique, not null]   // VIEW_ORDER, CREATE_PRODUCT
+  name varchar [not null]                      // tên hiển thị
+  module varchar [not null]                    // ORDER, PRODUCT
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp
+}
+
+Table RolePermission {
+  role_id UUID [ref: > Role.id]
+  permission_id UUID [ref: > Permission.id]
+
+  indexes {
+    (role_id, permission_id) [pk]
+  }
+}
+
+Table UserRole {
+  user_id UUID [ref: > User.id]
+  role_id UUID [ref: > Role.id]
+
+  indexes {
+    (user_id, role_id) [pk]
+  }
+}
+
+Table ShippingAddress {
+  id UUID [pk]
+  user_id UUID [not null, ref: > User.id]
+
+  province varchar [not null]
+  ward varchar [not null]
+  detail varchar [not null]   // số nhà, đường...
+
+  is_default boolean [default: false]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp
+  deleted_at timestamp
+}
+
+
+Enum ProductStatus {
+  DISCONTINUED 
+  ACTIVE
+}
+
+Table Product {
+  id UUID [pk]
+  name varchar [not null]
+  description text [not null]
+
+  price decimal [not null]
+
+  status ProductStatus [not null] // ACTIVE, DISCONTINUED
+  brand text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp
+  category_id UUID [ref: > Category.id]
+}
+
+Table Category {
+  id UUID [pk]
+  name varchar [not null]
+
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table ProductImage {
+  id UUID [pk]
+  product_id UUID [not null, ref: > Product.id]
+
+  image_url varchar [not null]
+  is_primary boolean [default: false]
+
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table Inventory {
+  product_id UUID [pk, ref: > Product.id]
+
+  quantity int [not null]         // tồn kho thật
+  reserved_quantity int [default: 0] // đang giữ cho order
+
+  // Business Rule: available = quantity - reserved_quantity
+}
+
+Table Cart {
+  id UUID [pk]
+  user_id UUID [not null, unique, ref: > User.id]
+
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table CartItem {
+  cart_id UUID [ref: > Cart.id]
+  product_id UUID [ref: > Product.id]
+
+  quantity int [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (cart_id, product_id) [pk]
+  }
+}
+
+Enum OrderStatus {
+  PENDING        // vừa tạo, chưa thanh toán
+  APPROVED      // đã thanh toán / xác nhận
+  SHIPPING
+  DELIVERED
+  CANCELLED
+}
+
+Table Order {
+  id UUID [pk]
+  user_id UUID [not null, ref: > User.id]
+
+  status OrderStatus [not null]
+  /*
+    Nhân viên luôn phải xác nhận đơn hàng!
+    Nếu Payment có PaymentMethod là "COD", thì chỉ staff cần duyệt
+    Nếu Payment có PaymentMethod là thanh toán online, staff duyệt khi thanh toán
+    đầy đủ
+  */
+
+  total_product_amount decimal(12,2)      
+  shipping_fee decimal(12,2)  
+  discount_amount decimal(12,2)
+
+  total_amount decimal(12,2) [not null]
+
+  shipping_address_snapshot text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp 
+}
+
+Table OrderItem {
+  order_id UUID [ref: > Order.id]
+  product_id UUID [ref: > Product.id]
+
+  price decimal(12,2) [not null]   // snapshot giá ngay tại lúc mua
+  quantity int [not null]
+
+  indexes {
+    (order_id, product_id) [pk]
+  }
+}
+
+Enum PaymentMethodType {
+  ONLINE
+  CASH
+}
+
+Table PaymentMethod {
+  id UUID [pk]
+  name varchar [unique]
+  type PaymentMethodType
+}
+
+Enum PaymentStatus {
+  PENDING      // vừa tạo, chưa xử lý
+  SUCCESS      // thanh toán thành công
+  FAILED       // thất bại
+  CANCELLED    // user hủy / timeout
+}
+
+Table Payment {
+  id UUID [pk]
+
+  order_id UUID [not null, ref: > Order.id]
+
+  payment_method_id UUID [not null, ref: > PaymentMethod.id]
+  status PaymentStatus [not null]
+
+  amount decimal(12,2) [not null]
+
+  transaction_ref varchar   // mã từ cổng thanh toán (nullable nếu COD)
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  /*
+   Nếu là COD, trạng thái sẽ là Pending cho đến khi ship thành công.
+   Khi đó, nhân viên cập nhật trạng thái Order thành "Delivered" thì
+   trạng thái Payment sẽ tự cập nhật "Success"
+  */
+}
+
+
+Enum VoucherType {
+  FIXED
+  PERCENT
+}
+
+Table Voucher {
+  id UUID [pk]
+
+  code varchar [unique, not null]
+
+  type VoucherType [not null]
+  value decimal(12,2)
+
+  max_usage int // Số đơn tối đa có thể sử dụng voucher, nhanh tay thì còn, chậm thì hết
+  used_count int [default: 0]
+  
+  min_order_amount decimal(12,2)
+
+  start_date timestamp
+  end_date timestamp
+
+  is_active bool [not null, default: true]
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table OrderVoucher {
+  order_id UUID [ref: > Order.id]
+  voucher_id UUID [ref: > Voucher.id]
+
+  indexes {
+    (order_id, voucher_id) [pk]
+  }
+}
+
+Enum ReviewStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+Table Review {
+  id UUID [pk]
+
+  user_id UUID [ref: > User.id]
+  product_id UUID [ref: > Product.id]
+
+  rating int [not null]   // 1 → 5
+  comment text
+
+  status ReviewStatus
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table ReviewResponse {
+  id UUID [pk]
+  review_id UUID [ref: > Review.id]
+  user_id UUID [ref: > User.id]
+  content text
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table Notification {
+  id UUID [pk]
+
+  user_id UUID [ref: > User.id]
+
+  title varchar
+  content text
+
+  is_read boolean [default: false]
+  ref_to uuid
+
+  created_at timestamp
+}

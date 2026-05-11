@@ -1,0 +1,26 @@
+package com.uit.nhom7.KiemThuPhanMem.domain.requestDTO;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ReqRegisterDTO {
+    @NotBlank(message = "Email must not be empty")
+    @Email(message = "Email is invalid")
+    private String email;
+
+    @NotBlank(message = "Password must not be empty")
+    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$", message = "Password must contain at least 8 characters, one letter, one number, and one special character")
+    private String password;
+
+    @NotBlank(message = "Confirm password must not be empty")
+    private String confirmPassword;
+}

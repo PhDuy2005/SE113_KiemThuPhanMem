@@ -1,16 +1,72 @@
 package com.uit.nhom7.KiemThuPhanMem.service;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import com.uit.nhom7.KiemThuPhanMem.util.error.BusinessException;
 
 @Service
 public class EmailService {
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
+
+    @Value("${techsales.app.base-url:http://localhost:8080}")
+    private String appBaseUrl;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
+
     public void sendRegistrationVerification(String email, String verificationToken) {
-        System.out.println(">>>EMAIL MODULE: Verification email queued for " + email
-                + " with token " + verificationToken);
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Verify Registration TechSales Account");
+        message.setText("""
+                Welcome,
+
+                Follow this link to verify your email address to finish your registration step.
+
+                %s/api/v1/auth/verify?token=%s
+
+                Thanks.
+
+                The TechSale team
+                """.formatted(appBaseUrl, verificationToken));
+        send(message);
     }
 
     public void sendPasswordReset(String email, String resetToken) {
-        System.out.println(">>>EMAIL MODULE: Password reset email queued for " + email
-                + " with token " + resetToken);
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Reset TechSales Account Password");
+        message.setText("""
+                Dear customer,
+
+                Follow this link to reset your TechSales account password.
+
+                %s/api/v1/auth/reset-password/validate?token=%s
+
+                Thanks.
+
+                The TechSale team
+                """.formatted(appBaseUrl, resetToken));
+        send(message);
+    }
+
+    private void send(SimpleMailMessage message) {
+        try {
+            mailSender.send(message);
+        } catch (MailException ex) {
+            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Cannot send email right now: " + ex.getMessage());
+        }
     }
 }

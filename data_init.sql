@@ -1,0 +1,7 @@
+-- Business admin is now initialized by DataInitializer on application startup.
+-- Configure credentials in src/main/resources/application.properties:
+-- techsales.admin.email=${TECHSALES_ADMIN_EMAIL:business.admin@techsales.com}
+-- techsales.admin.password=${TECHSALES_ADMIN_PASSWORD:Admin@123456}
+--
+-- The application uses Spring Security PasswordEncoder to BCrypt-hash the
+-- configured password before saving the user.

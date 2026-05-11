@@ -8,8 +8,6 @@ import com.uit.nhom7.KiemThuPhanMem.util.UuidV7Generator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -38,7 +36,11 @@ public class User {
     @Column(columnDefinition = "BINARY(16)")
     private UUID id;
 
-    private String name;
+    @Column(name = "user_uuid", columnDefinition = "BINARY(16)")
+    private UUID userUuid;
+
+    @Column(name = "user_fullname")
+    private String userFullName;
 
     private String phoneNumber;
 
@@ -89,6 +91,9 @@ public class User {
     protected void onCreate() {
         if (id == null) {
             id = generateUUIDv7();
+        }
+        if (userUuid == null) {
+            userUuid = id;
         }
         if (failedLoginAttempts == null) {
             failedLoginAttempts = 0;

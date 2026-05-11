@@ -2221,7 +2221,7 @@ Error Handling Rules:
 
 Loading Matrix Rules:
 1. Hệ thống truy vấn danh sách vai trò (Roles) và danh sách quyền (Permissions).
-2. Hiển thị ma trận Role-Permission_Matrix cho phép Technical Admin đánh dấu chọn các quyền tương ứng cho từng vai trò.
+2. Hiển thị ma trận Role-Permission_Matrix cho phép Business Admin đánh dấu chọn các quyền tương ứng cho từng vai trò.
 
 #### BR296 — Activity (3)
 
@@ -2259,7 +2259,7 @@ Rollback & Error Rules:
 #### BR301 — Activity (1) & (2)
 
 Input & Role Selection Rules:
-1. Hệ thống tiếp nhận các thông tin từ Technical Admin: [email], [fullName], [password].
+1. Hệ thống tự khởi tạo tài khoản Business Admin ban đầu từ cấu hình hệ thống: [email], [fullName], [password].
 2. Vai trò mặc định được gán cho tài khoản này là BUSINESS_ADMIN.
 
 #### BR302 — Activity (3)
@@ -2324,7 +2324,7 @@ Empty State Rules:
 #### BR311 — Activity (1)
 
 Maintenance Initiation Rules:
-1. Hệ thống tiếp nhận lệnh kích hoạt bảo trì từ Technical Admin.
+1. Hệ thống tiếp nhận lệnh kích hoạt bảo trì từ Business Admin.
 2. Yêu cầu xác nhận lần cuối qua hộp thoại Maintenance_Confirm_Modal.
 
 #### BR312 — Activity (2)

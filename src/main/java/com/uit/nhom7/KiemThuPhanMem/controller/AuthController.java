@@ -93,7 +93,7 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUserDB.getId(),
                 currentUserDB.getEmail(),
-                currentUserDB.getName());
+                currentUserDB.getUserFullName());
         resLoginDTO.setUser(userLogin);
 
         if (currentUserDB.getRole() != null) {
@@ -167,7 +167,7 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUserDB.getId(),
                 currentUserDB.getEmail(),
-                currentUserDB.getName());
+                currentUserDB.getUserFullName());
 
         ResLoginDTO.UserGetAccount userGetAccount = new ResLoginDTO.UserGetAccount();
         userGetAccount.setUser(userLogin);
@@ -205,7 +205,7 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUser.getId(),
                 currentUser.getEmail(),
-                currentUser.getName());
+                currentUser.getUserFullName());
 
         ResLoginDTO resLoginDTO = new ResLoginDTO();
         resLoginDTO.setUser(userLogin);

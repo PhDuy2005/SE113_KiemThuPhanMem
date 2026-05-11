@@ -68,7 +68,7 @@ public class UserService {
         return ResUserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
-                .name(user.getName())
+                .name(user.getUserFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .accountStatus(user.getAccountStatus())
                 .createdAt(user.getCreatedAt())
@@ -89,7 +89,7 @@ public class UserService {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 user.getId(),
                 user.getEmail(),
-                user.getName());
+                user.getUserFullName());
 
         ResLoginDTO.Role roleDTO = null;
         if (user.getRole() != null) {
@@ -198,7 +198,7 @@ public class UserService {
     @Transactional
     public ResUserDTO updateCurrentUserProfile(ReqUpdateProfileDTO request) {
         User user = getCurrentActiveUser();
-        user.setName(request.getFullName().trim());
+        user.setUserFullName(request.getFullName().trim());
         user.setPhoneNumber(request.getPhoneNumber().trim());
         return convertToDTO(userRepository.save(user));
     }

@@ -2,6 +2,7 @@ package com.uit.nhom7.KiemThuPhanMem.repository;
 
 import java.util.UUID;
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,4 +22,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByStatusIgnoreCaseAndUserId(String status, UUID userId, Pageable pageable);
 
     Page<Order> findByUserPhoneNumberContaining(String phoneNumber, Pageable pageable);
+
+    List<Order> findByUserIdAndStatusIgnoreCase(UUID userId, String status);
 }

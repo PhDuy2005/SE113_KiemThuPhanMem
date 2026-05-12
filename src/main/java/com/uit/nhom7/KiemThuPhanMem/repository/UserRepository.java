@@ -3,6 +3,8 @@ package com.uit.nhom7.KiemThuPhanMem.repository;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -20,4 +22,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     Optional<User> findByVerificationToken(String verificationToken);
 
     Optional<User> findByResetPasswordToken(String resetPasswordToken);
+
+    Page<User> findByRoleNameIgnoreCase(String roleName, Pageable pageable);
 }

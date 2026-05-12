@@ -34,6 +34,13 @@ public class ProductCatalogService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ResProductDTO getProductById(UUID productId) {
+        Product product = productRepository.findByIdAndStatusIgnoreCase(productId, Product.ACTIVE_STATUS)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Product not found"));
+        return convertToDTO(product);
+    }
+
     private boolean hasCategoryFilter(List<UUID> categoryIds) {
         return categoryIds != null && !categoryIds.isEmpty();
     }

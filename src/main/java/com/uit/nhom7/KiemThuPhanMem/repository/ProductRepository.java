@@ -1,6 +1,7 @@
 package com.uit.nhom7.KiemThuPhanMem.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
@@ -12,6 +13,8 @@ import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findByStatusIgnoreCase(String status);
+
+    Optional<Product> findByIdAndStatusIgnoreCase(UUID id, String status);
 
     List<Product> findByStatusIgnoreCase(String status, Sort sort);
 

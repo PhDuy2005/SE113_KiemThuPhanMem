@@ -110,6 +110,8 @@ public class SecurityConfiguration {
                 "/api/v1/auth/reset-password", // Đặt lại mật khẩu
                 "/api/v1/auth/reset-password/validate", // Kiểm tra reset token
                 "/api/v1/products", // Danh sách sản phẩm
+                "/api/v1/products/*", // Chi tiết sản phẩm
+                "/api/v1/products/*/stock", // Trạng thái tồn kho
                 "/api/v1/products/search", // Tìm kiếm sản phẩm
 
                 // Actuator endpoints (monitoring)

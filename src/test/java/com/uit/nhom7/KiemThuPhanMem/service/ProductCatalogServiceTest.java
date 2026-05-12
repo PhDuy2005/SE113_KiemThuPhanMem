@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,41 @@ import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
 import com.uit.nhom7.KiemThuPhanMem.util.error.BusinessException;
 
 class ProductCatalogServiceTest {
+    @Test
+    void getProductByIdShouldReturnActiveProduct() {
+        ProductRepository productRepository = Mockito.mock(ProductRepository.class);
+        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository);
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder()
+                .id(productId)
+                .name("Mouse")
+                .price(BigDecimal.valueOf(250000))
+                .status(Product.ACTIVE_STATUS)
+                .build();
+
+        when(productRepository.findByIdAndStatusIgnoreCase(productId, Product.ACTIVE_STATUS))
+                .thenReturn(Optional.of(product));
+
+        ResProductDTO result = productCatalogService.getProductById(productId);
+
+        assertThat(result.getId()).isEqualTo(productId);
+        assertThat(result.getName()).isEqualTo("Mouse");
+    }
+
+    @Test
+    void getProductByIdShouldThrowNotFoundWhenProductDoesNotExist() {
+        ProductRepository productRepository = Mockito.mock(ProductRepository.class);
+        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository);
+        UUID productId = UUID.randomUUID();
+
+        when(productRepository.findByIdAndStatusIgnoreCase(productId, Product.ACTIVE_STATUS))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productCatalogService.getProductById(productId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Product not found");
+    }
+
     @Test
     void getProductsShouldFilterByCategoriesAndSortByPriceDesc() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);

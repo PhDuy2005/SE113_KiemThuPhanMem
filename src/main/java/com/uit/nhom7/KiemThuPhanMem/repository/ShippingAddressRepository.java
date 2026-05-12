@@ -2,6 +2,7 @@ package com.uit.nhom7.KiemThuPhanMem.repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,6 +17,8 @@ public interface ShippingAddressRepository extends JpaRepository<ShippingAddress
     Optional<ShippingAddress> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
     Optional<ShippingAddress> findByUserIdAndDefaultAddressTrueAndDeletedAtIsNull(UUID userId);
+
+    List<ShippingAddress> findByUserIdAndDeletedAtIsNull(UUID userId);
 
     boolean existsByUserIdAndDeletedAtIsNull(UUID userId);
 

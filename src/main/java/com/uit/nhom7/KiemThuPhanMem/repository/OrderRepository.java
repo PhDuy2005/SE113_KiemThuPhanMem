@@ -1,0 +1,18 @@
+package com.uit.nhom7.KiemThuPhanMem.repository;
+
+import java.util.UUID;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.uit.nhom7.KiemThuPhanMem.domain.table.Order;
+
+@Repository
+public interface OrderRepository extends JpaRepository<Order, UUID> {
+    Optional<Order> findByIdAndUserId(UUID id, UUID userId);
+
+    Page<Order> findByUserId(UUID userId, Pageable pageable);
+}

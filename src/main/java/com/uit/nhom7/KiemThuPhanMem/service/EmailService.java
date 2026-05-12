@@ -1,5 +1,8 @@
 package com.uit.nhom7.KiemThuPhanMem.service;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailException;
@@ -58,6 +61,45 @@ public class EmailService {
 
                 The TechSale team
                 """.formatted(appBaseUrl, resetToken));
+        send(message);
+    }
+
+    public void sendOrderConfirmation(
+            String email,
+            String fullName,
+            UUID orderId,
+            String orderItems,
+            BigDecimal totalAmount,
+            String shippingAddress,
+            String paymentMethod) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Confirm your Order");
+        message.setText("""
+                Dear %s,
+
+                You have just confirmed an order. This is detail:
+
+                Order ID: %s
+                Items:
+                %s
+
+                Total amount: %s
+                The order will be shipped to %s
+
+                Payment Method: %s
+
+                Thanks.
+
+                The TechSale team
+                """.formatted(
+                fullName == null || fullName.isBlank() ? "customer" : fullName,
+                orderId,
+                orderItems,
+                totalAmount,
+                shippingAddress,
+                paymentMethod));
         send(message);
     }
 

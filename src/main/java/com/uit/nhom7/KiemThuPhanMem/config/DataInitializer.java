@@ -7,9 +7,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Role;
+import com.uit.nhom7.KiemThuPhanMem.domain.table.PaymentMethod;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
+import com.uit.nhom7.KiemThuPhanMem.repository.PaymentMethodRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.RoleRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.UserRepository;
+import com.uit.nhom7.KiemThuPhanMem.util.UuidV7Generator;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -18,6 +21,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${techsales.admin.email:business.admin@techsales.com}")
@@ -29,9 +33,11 @@ public class DataInitializer implements CommandLineRunner {
     public DataInitializer(
             UserRepository userRepository,
             RoleRepository roleRepository,
+            PaymentMethodRepository paymentMethodRepository,
             PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.paymentMethodRepository = paymentMethodRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -46,6 +52,13 @@ public class DataInitializer implements CommandLineRunner {
                     .active(true)
                     .build());
         }
+
+        paymentMethodRepository.findByNameIgnoreCase("Cash")
+                .orElseGet(() -> paymentMethodRepository.save(PaymentMethod.builder()
+                        .id(UuidV7Generator.generate())
+                        .name("Cash")
+                        .type(PaymentMethod.CASH_TYPE)
+                        .build()));
 
         String normalizedEmail = adminEmail.trim().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {

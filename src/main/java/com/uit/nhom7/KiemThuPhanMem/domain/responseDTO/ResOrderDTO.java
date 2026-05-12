@@ -1,6 +1,7 @@
 package com.uit.nhom7.KiemThuPhanMem.domain.responseDTO;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -14,6 +15,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ResOrderDTO {
     private UUID orderId;
+    private UUID customerId;
+    private String customerName;
     private String status;
     private BigDecimal totalProductAmount;
     private BigDecimal shippingFee;
@@ -21,5 +24,11 @@ public class ResOrderDTO {
     private BigDecimal totalAmount;
     private UUID paymentId;
     private String paymentStatus;
+    private String trackingNumber;
+    private Instant orderingTime;
+    private Instant completedAt;
+    private String cancelReason;
+    private Instant cancelledAt;
+    private String refundStatus;
     private String message;
 }

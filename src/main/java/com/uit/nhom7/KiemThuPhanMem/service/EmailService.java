@@ -103,6 +103,36 @@ public class EmailService {
         send(message);
     }
 
+    public void sendOrderCancellation(
+            String email,
+            String fullName,
+            UUID orderId,
+            String cancelReason,
+            String refundStatus) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Your order has been cancelled");
+        message.setText("""
+                Dear %s,
+
+                Your order has been cancelled.
+
+                Order ID: %s
+                Cancel reason: %s
+                Refund status: %s
+
+                Thanks.
+
+                The TechSale team
+                """.formatted(
+                fullName == null || fullName.isBlank() ? "customer" : fullName,
+                orderId,
+                cancelReason,
+                refundStatus == null || refundStatus.isBlank() ? "N/A" : refundStatus));
+        send(message);
+    }
+
     private void send(SimpleMailMessage message) {
         try {
             mailSender.send(message);

@@ -15,4 +15,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findByIdAndUserId(UUID id, UUID userId);
 
     Page<Order> findByUserId(UUID userId, Pageable pageable);
+
+    Page<Order> findByStatusIgnoreCase(String status, Pageable pageable);
+
+    Page<Order> findByStatusIgnoreCaseAndUserId(String status, UUID userId, Pageable pageable);
+
+    Page<Order> findByUserPhoneNumberContaining(String phoneNumber, Pageable pageable);
 }

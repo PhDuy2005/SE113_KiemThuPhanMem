@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 public class ResultPaginationDTO {
     private Meta meta;
     private Object result;
+    private String message;
 
     @Data
     @NoArgsConstructor

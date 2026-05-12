@@ -16,15 +16,24 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ResOrderDetailDTO {
     private UUID orderId;
+    private UUID customerId;
+    private String customerName;
+    private String customerPhone;
     private String status;
     private BigDecimal totalProductAmount;
     private BigDecimal shippingFee;
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
     private String shippingAddressSnapshot;
+    private String trackingNumber;
     private String paymentMethod;
     private String paymentStatus;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant completedAt;
+    private String cancelReason;
+    private Instant cancelledAt;
+    private String refundStatus;
     private List<ResOrderItemDTO> items;
+    private String message;
 }

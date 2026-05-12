@@ -1,6 +1,5 @@
 package com.uit.nhom7.KiemThuPhanMem.domain.table;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,9 +11,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,33 +19,33 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "payment")
+@Table(name = "notification")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Payment {
-    public static final String PENDING_STATUS = "PENDING";
-    public static final String SUCCESS_STATUS = "SUCCESS";
-    public static final String REFUNDED_STATUS = "REFUNDED";
-
+public class Notification {
     @Id
     @Column(columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_method_id", nullable = false)
-    private PaymentMethod paymentMethod;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    private String status;
-    private BigDecimal amount;
-    private String transactionRef;
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "is_read")
+    private boolean read;
+
+    @Column(name = "ref_to", columnDefinition = "BINARY(16)")
+    private UUID refTo;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
-    private Instant updatedAt;
 
     @PrePersist
     protected void onCreate() {
@@ -56,10 +53,5 @@ public class Payment {
             id = UuidV7Generator.generate();
         }
         createdAt = Instant.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = Instant.now();
     }
 }

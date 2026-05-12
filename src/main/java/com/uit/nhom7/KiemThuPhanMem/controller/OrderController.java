@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqChangeOrderAddressDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqStaffCancelOrderDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateShippingStatusDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResOrderDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResOrderDetailDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResOrderStatusTimelineDTO;
@@ -39,6 +41,64 @@ public class OrderController {
             @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
             @RequestParam(value = "pageSize", defaultValue = "10") int pageSize) {
         return ResponseEntity.ok(orderService.getOrderHistory(userId, pageNumber, pageSize));
+    }
+
+    @GetMapping("/staff/pending")
+    @ApiMessage("Staff xem danh sach don hang pending")
+    public ResponseEntity<ResultPaginationDTO> getPendingOrdersForStaff(
+            @RequestParam(value = "userId", required = false) UUID userId,
+            @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
+            @RequestParam(value = "pageSize", defaultValue = "20") int pageSize) {
+        return ResponseEntity.ok(orderService.getPendingOrdersForStaff(userId, pageNumber, pageSize));
+    }
+
+    @GetMapping("/staff/search")
+    @ApiMessage("Staff tim kiem don hang")
+    public ResponseEntity<ResultPaginationDTO> searchOrdersForStaff(
+            @RequestParam("searchKeyword") String searchKeyword,
+            @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
+            @RequestParam(value = "pageSize", defaultValue = "20") int pageSize) {
+        return ResponseEntity.ok(orderService.searchOrdersForStaff(searchKeyword, pageNumber, pageSize));
+    }
+
+    @GetMapping("/staff/{orderId}")
+    @ApiMessage("Staff xem chi tiet don hang")
+    public ResponseEntity<ResOrderDetailDTO> getOrderDetailForStaff(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(orderService.getOrderDetailForStaff(orderId));
+    }
+
+    @PatchMapping("/staff/{orderId}/approve")
+    @ApiMessage("Staff duyet don hang")
+    public ResponseEntity<ResOrderDTO> approveOrder(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(orderService.approveOrder(orderId));
+    }
+
+    @PatchMapping("/staff/{orderId}/shipping")
+    @ApiMessage("Staff cap nhat trang thai giao hang")
+    public ResponseEntity<ResOrderDetailDTO> updateShippingStatus(
+            @PathVariable UUID orderId,
+            @RequestBody ReqUpdateShippingStatusDTO request) {
+        return ResponseEntity.ok(orderService.updateShippingStatus(orderId, request));
+    }
+
+    @PatchMapping("/staff/{orderId}/delivered")
+    @ApiMessage("Staff xac nhan don hang delivered")
+    public ResponseEntity<ResOrderDetailDTO> markOrderDelivered(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(orderService.markOrderDelivered(orderId));
+    }
+
+    @PatchMapping("/staff/{orderId}/cancel")
+    @ApiMessage("Staff huy don hang")
+    public ResponseEntity<ResOrderDTO> cancelOrderForStaff(
+            @PathVariable UUID orderId,
+            @RequestBody ReqStaffCancelOrderDTO request) {
+        return ResponseEntity.ok(orderService.cancelOrderForStaff(orderId, request));
+    }
+
+    @PatchMapping("/staff/{orderId}/refund")
+    @ApiMessage("Staff khoi tao hoan tien")
+    public ResponseEntity<ResOrderDTO> initiateRefund(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(orderService.initiateRefund(orderId));
     }
 
     @GetMapping("/{orderId}")

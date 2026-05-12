@@ -29,6 +29,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class Order {
     public static final String PENDING_STATUS = "PENDING";
+    public static final String APPROVED_STATUS = "APPROVED";
     public static final String CANCELLED_STATUS = "CANCELLED";
     public static final String SHIPPING_STATUS = "SHIPPING";
     public static final String DELIVERED_STATUS = "DELIVERED";
@@ -49,6 +50,21 @@ public class Order {
 
     @Column(name = "shipping_address_snapshot", columnDefinition = "TEXT", nullable = false)
     private String shippingAddressSnapshot;
+
+    @Column(name = "tracking_number")
+    private String trackingNumber;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @Column(name = "refund_status")
+    private String refundStatus;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

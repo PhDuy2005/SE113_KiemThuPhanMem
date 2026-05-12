@@ -1360,52 +1360,68 @@ Finalization Notification Rules:
 
 #### BR162 — Activity (1) & (2)
 
-Loading Rules:
-1. Hệ thống tiếp nhận yêu cầu hủy đơn và hiển thị popup CancelOrder_Popup.
-2. Hiển thị danh sách lý do [reasonList] và một trường nhập văn bản [cancelDescription] (mặc định bị ẩn hoặc vô hiệu hóa).
+Loading & Input Rules:
+1. Hệ thống tiếp nhận yêu cầu từ Nhân viên Sales tại màn hình chi tiết đơn hàng.
+2. Hệ thống chỉ cho phép hủy các đơn hàng có trạng thái: 'Pending', 'Approved' hoặc 'Shipping'.
+3. Các trường dữ liệu yêu cầu từ client: [orderId], [cancelReason].
+4. Hệ thống hiển thị hộp thoại xác nhận hủy đơn hàng với nội dung: MSG58.
+5. Hệ thống yêu cầu nhân viên nhập lý do hủy đơn hàng theo danh sách chuẩn hóa hoặc nhập thủ công nếu chọn “Other”.
 
 #### BR163 — Activity (3)
 
-Dynamic UI Rules:
-1. Nếu nhân viên chọn reasonID == 'OTHER', hệ thống tự động kích hoạt (enable) trường [cancelDescription].
-2. Nếu chọn các lý do khác, trường này có thể để trống hoặc bị vô hiệu hóa.
+Validation Rules:
+1. If [cancelReason] is empty then returns 400-BAD_REQUEST error with MSG59.
+2. [order] = OrderRepository.findById([orderId]).
+3. If [order] == null then returns 404-NOT_FOUND error with MSG60.
+4. If [order.status] == 'DELIVERED' OR [order.status] == 'CANCELLED' then returns 409-CONFLICT error with MSG61.
+5. If [order.status] not in ['PENDING', 'APPROVED', 'SHIPPING'] then returns 400-BAD_REQUEST error with MSG62.
 
-#### BR164 — Activity (4)
+#### BR164 — Activity (4) & (5)
 
-Input Submission:
-Hệ thống truyền bộ tham số (orderID, reasonId, cancelDescription) xuống tầng xử lý Order_Controller.
+Cancellation Processing Rules:
+1. Hệ thống cập nhật trạng thái đơn hàng trong CSDL:
+   OrderRepository.updateStatus([orderId], 'CANCELLED').
+2. Hệ thống cập nhật lý do hủy:
+   [order.cancelReason] = [cancelReason].
+3. Hệ thống cập nhật thời gian hủy:
+   [order.cancelledAt] = DateTime.Now.
+4. Nếu đơn hàng đã thanh toán online:
+   - Hệ thống đánh dấu trạng thái hoàn tiền chờ xử lý:
+     [order.refundStatus] = 'PENDING_REFUND'.
+5. Nếu đơn hàng đang ở trạng thái 'Shipping':
+   - Hệ thống gửi yêu cầu dừng giao hàng đến đơn vị vận chuyển.
 
-#### BR165 — Activity (13)
+#### BR165 — Activity (6)
 
-Complex Validation Rules:
-1. Check 1: Nếu reasonID trống then trả về MSG59.
-2. Check 2: Nếu reasonID == 'OTHER' VÀ cancelDescription trống then trả về MSG60.
-3. Nếu thỏa mãn cả hai, chuyển sang Activity (5).
+Inventory Restoration Rules:
+1. Hệ thống hoàn trả số lượng sản phẩm về kho:
+   InventoryRepository.restoreStock([order.items]).
+2. Hệ thống cập nhật lại số lượng tồn kho khả dụng theo thời gian thực.
+3. Nếu có sản phẩm đang ở trạng thái “Out of Stock”, hệ thống tự động mở lại trạng thái bán nếu tồn kho sau hoàn trả > 0.
 
-#### BR166 — Activity (5) & (6)
-
-Status Update Rules:
-Hệ thống cập nhật trạng thái đơn hàng thành "Canceled" trong CSDL.
-
-#### BR167 — Activity (7) & (8)
-
-Inventory Rules:
-Hoàn trả số lượng sản phẩm vào tồn kho thực tế: InventoryRepository.restoreStock(orderID).
-
-#### BR168 — Activity (9) & (10)
+#### BR166 — Activity (7)
 
 Audit Log Rules:
-Ghi nhật ký hành động: AuditLog.write(staffID, "CANCEL_ORDER", orderID, reasonId, cancelDescription). Nội dung mô tả sẽ được lưu cùng để phục vụ hậu kiểm.
+1. Hệ thống ghi nhận hành động hủy đơn hàng:
+   AuditLogger.log([userId], 'CANCEL_ORDER', [orderId]).
+2. Nội dung nhật ký bao gồm:
+   - Mã đơn hàng.
+   - Nhân viên thực hiện.
+   - Lý do hủy.
+   - Thời gian thao tác.
+3. Nhật ký phục vụ truy vết và kiểm tra nội bộ.
 
-#### BR169 — Activity (11) & (12)
+#### BR167 — Activity (8)
 
-Success Message Rules:
-Trả về phản hồi 200-OK kèm MSG58 và đóng popup.
-
-#### BR170 — Activity (14)
-
-Error Display Rules:
-Hiển thị cảnh báo lỗi tương ứng MSG59 hoặc MSG60 ngay trên popup để nhân viên bổ sung thông tin.
+Notification & Finalization Rules:
+1. Trả về phản hồi 200-OK kèm thông báo thành công MSG63.
+2. Hệ thống cập nhật giao diện người dùng:
+   - Trạng thái đơn hàng chuyển sang 'Cancelled'.
+   - Disable các nút thao tác xử lý đơn hàng khác.
+3. Hệ thống gửi email thông báo hủy đơn hàng cho khách hàng:
+   - Bao gồm mã đơn hàng, lý do hủy và trạng thái hoàn tiền (nếu có).
+4. Nếu đơn hàng có thanh toán online:
+   - Hiển thị trạng thái “Refund Pending” trên giao diện chi tiết đơn hàng.
 
 ---
 

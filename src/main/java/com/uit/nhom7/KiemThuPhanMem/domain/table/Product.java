@@ -30,6 +30,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class Product {
     public static final String ACTIVE_STATUS = "ACTIVE";
+    public static final String DISCONTINUED_STATUS = "DISCONTINUED";
+    public static final String OUT_OF_STOCK_STATUS = "OUT_OF_STOCK";
 
     @Id
     @Column(columnDefinition = "BINARY(16)")

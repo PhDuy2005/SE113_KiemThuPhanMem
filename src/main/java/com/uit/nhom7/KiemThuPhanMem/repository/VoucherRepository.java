@@ -11,4 +11,6 @@ import com.uit.nhom7.KiemThuPhanMem.domain.table.Voucher;
 @Repository
 public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     Optional<Voucher> findByCodeIgnoreCase(String code);
+
+    boolean existsByCodeIgnoreCase(String code);
 }

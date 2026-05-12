@@ -1,6 +1,7 @@
 package com.uit.nhom7.KiemThuPhanMem.domain.responseDTO;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -20,4 +21,7 @@ public class ResProductDTO {
     private String status;
     private String brand;
     private UUID categoryId;
+    private Integer stock;
+    private List<String> imageUrls;
+    private String message;
 }

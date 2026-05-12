@@ -27,6 +27,8 @@ import lombok.NoArgsConstructor;
 public class Voucher {
     public static final String FIXED_TYPE = "FIXED";
     public static final String PERCENT_TYPE = "PERCENT";
+    public static final String ACTIVE_STATUS = "ACTIVE";
+    public static final String STOPPED_STATUS = "STOPPED";
 
     @Id
     @Column(columnDefinition = "BINARY(16)")
@@ -43,6 +45,7 @@ public class Voucher {
     private Instant startDate;
     private Instant endDate;
     private boolean active;
+    private String status;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -63,6 +66,9 @@ public class Voucher {
         }
         if (usedCount == null) {
             usedCount = 0;
+        }
+        if (status == null || status.isBlank()) {
+            status = active ? ACTIVE_STATUS : STOPPED_STATUS;
         }
         createdAt = Instant.now();
         createdBy = SecurityUtil.getCurrentUserLogin().orElse("system");

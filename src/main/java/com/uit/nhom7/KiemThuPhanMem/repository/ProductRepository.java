@@ -28,4 +28,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     int updateCategory(
             @Param("oldCategoryId") UUID oldCategoryId,
             @Param("newCategoryId") UUID newCategoryId);
+
+    @Modifying
+    @Query("update Product product set product.price = :newPrice where product.id = :productId")
+    int updatePrice(@Param("productId") UUID productId, @Param("newPrice") java.math.BigDecimal newPrice);
+
+    @Modifying
+    @Query("update Product product set product.status = :status where product.id = :productId")
+    int updateStatus(@Param("productId") UUID productId, @Param("status") String status);
 }

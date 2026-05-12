@@ -16,6 +16,8 @@ import com.uit.nhom7.KiemThuPhanMem.util.UuidV7Generator;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
+    private static final String CUSTOMER_ROLE = "CUSTOMER";
+    private static final String STAFF_ROLE = "STAFF";
     private static final String BUSINESS_ADMIN_ROLE = "BUSINESS_ADMIN";
     private static final String ACTIVE_ACCOUNT_STATUS = "ACTIVE";
 
@@ -44,6 +46,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        ensureRole(CUSTOMER_ROLE, "Customer - khach hang mua san pham");
+        ensureRole(STAFF_ROLE, "Staff - nhan vien xu ly don hang va danh gia");
         Role businessAdminRole = roleRepository.findByName(BUSINESS_ADMIN_ROLE);
         if (businessAdminRole == null) {
             businessAdminRole = roleRepository.save(Role.builder()
@@ -75,5 +79,17 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(admin);
+    }
+
+    private Role ensureRole(String name, String description) {
+        Role role = roleRepository.findByName(name);
+        if (role != null) {
+            return role;
+        }
+        return roleRepository.save(Role.builder()
+                .name(name)
+                .description(description)
+                .active(true)
+                .build());
     }
 }

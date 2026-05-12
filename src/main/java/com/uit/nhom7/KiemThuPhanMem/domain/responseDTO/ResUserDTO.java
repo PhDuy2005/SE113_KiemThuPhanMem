@@ -35,4 +35,6 @@ public class ResUserDTO {
 
     @JsonProperty("updated_by")
     private String updatedBy;
+
+    private String message;
 }

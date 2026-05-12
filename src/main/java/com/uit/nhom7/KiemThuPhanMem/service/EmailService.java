@@ -133,6 +133,31 @@ public class EmailService {
         send(message);
     }
 
+    public void sendStaffLoginDetails(String email, String fullName, String tempPassword) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(email);
+        message.setSubject("Your TechSales staff account");
+        message.setText("""
+                Dear %s,
+
+                A TechSales staff account has been created for you.
+
+                Login email: %s
+                Temporary password: %s
+
+                Please login and change your password as soon as possible.
+
+                Thanks.
+
+                The TechSale team
+                """.formatted(
+                fullName == null || fullName.isBlank() ? "staff" : fullName,
+                email,
+                tempPassword));
+        send(message);
+    }
+
     private void send(SimpleMailMessage message) {
         try {
             mailSender.send(message);

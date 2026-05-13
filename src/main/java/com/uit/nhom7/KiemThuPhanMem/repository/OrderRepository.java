@@ -3,6 +3,7 @@ package com.uit.nhom7.KiemThuPhanMem.repository;
 import java.util.UUID;
 import java.util.Optional;
 import java.util.List;
+import java.time.Instant;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,4 +25,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByUserPhoneNumberContaining(String phoneNumber, Pageable pageable);
 
     List<Order> findByUserIdAndStatusIgnoreCase(UUID userId, String status);
+
+    List<Order> findByStatusIgnoreCaseAndCompletedAtBetween(String status, Instant startDate, Instant endDate);
+
+    List<Order> findByCreatedAtBetween(Instant startDate, Instant endDate);
+
+    List<Order> findByStatusIgnoreCaseAndCreatedAtBetween(String status, Instant startDate, Instant endDate);
 }

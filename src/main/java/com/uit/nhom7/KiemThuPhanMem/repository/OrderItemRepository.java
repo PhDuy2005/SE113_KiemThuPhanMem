@@ -2,6 +2,7 @@ package com.uit.nhom7.KiemThuPhanMem.repository;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,4 +21,17 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, OrderItemI
             where item.order.id = :orderId
             """)
     List<OrderItem> findByOrderIdWithProduct(@Param("orderId") UUID orderId);
+
+    @Query("""
+            select item
+            from OrderItem item
+            join fetch item.product
+            join fetch item.order
+            where upper(item.order.status) = upper(:status)
+              and item.order.createdAt between :startDate and :endDate
+            """)
+    List<OrderItem> findByOrderStatusAndOrderCreatedAtBetweenWithProduct(
+            @Param("status") String status,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate);
 }

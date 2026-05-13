@@ -113,6 +113,8 @@ public class SecurityConfiguration {
                 "/api/v1/products/*", // Chi tiết sản phẩm
                 "/api/v1/products/*/stock", // Trạng thái tồn kho
                 "/api/v1/products/*/reviews", // Doc danh gia san pham
+                "/api/v1/address-data/provinces", // Danh sach tinh thanh cho dropdown
+                "/api/v1/address-data/provinces/*/wards", // Danh sach phuong xa cho dropdown
                 "/api/v1/products/search", // Tìm kiếm sản phẩm
 
                 // Actuator endpoints (monitoring)

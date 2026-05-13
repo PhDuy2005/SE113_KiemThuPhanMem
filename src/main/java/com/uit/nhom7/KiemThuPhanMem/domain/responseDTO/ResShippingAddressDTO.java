@@ -17,7 +17,9 @@ import lombok.NoArgsConstructor;
 public class ResShippingAddressDTO {
     private UUID id;
     private UUID userId;
+    private String provinceCode;
     private String province;
+    private String wardCode;
     private String ward;
     private String detail;
 

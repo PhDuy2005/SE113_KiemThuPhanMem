@@ -70,6 +70,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ShippingAddressRepository shippingAddressRepository;
+    private final ShippingFeeConfigService shippingFeeConfigService;
     private final UserRepository userRepository;
     private final EmailService emailService;
 
@@ -80,6 +81,7 @@ public class OrderService {
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
             ShippingAddressRepository shippingAddressRepository,
+            ShippingFeeConfigService shippingFeeConfigService,
             UserRepository userRepository,
             EmailService emailService) {
         this.inventoryRepository = inventoryRepository;
@@ -88,6 +90,7 @@ public class OrderService {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.shippingAddressRepository = shippingAddressRepository;
+        this.shippingFeeConfigService = shippingFeeConfigService;
         this.userRepository = userRepository;
         this.emailService = emailService;
     }
@@ -405,7 +408,9 @@ public class OrderService {
                 .map(address -> com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResShippingAddressDTO.builder()
                         .id(address.getId())
                         .userId(address.getUser().getId())
+                        .provinceCode(address.getProvinceCode())
                         .province(address.getProvince())
+                        .wardCode(address.getWardCode())
                         .ward(address.getWard())
                         .detail(address.getDetail())
                         .defaultAddress(address.isDefaultAddress())
@@ -427,7 +432,18 @@ public class OrderService {
         ShippingAddress newAddress = shippingAddressRepository
                 .findByIdAndUserIdAndDeletedAtIsNull(request.getNewAddressId(), order.getUser().getId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Shipping address not found"));
+        BigDecimal newShippingFee = shippingFeeConfigService.getShippingFeeForProvince(
+                newAddress.getProvinceCode(), newAddress.getProvince());
         order.setShippingAddressSnapshot(buildShippingAddressSnapshot(newAddress));
+        order.setShippingFee(newShippingFee);
+        order.setTotalAmount((order.getTotalProductAmount() == null ? BigDecimal.ZERO : order.getTotalProductAmount())
+                .add(newShippingFee)
+                .subtract(order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount())
+                .max(BigDecimal.ZERO));
+        paymentRepository.findByOrderId(order.getId()).ifPresent(payment -> {
+            payment.setAmount(order.getTotalAmount());
+            paymentRepository.save(payment);
+        });
         return toOrderDetail(orderRepository.save(order));
     }
 

@@ -1,5 +1,6 @@
 package com.uit.nhom7.KiemThuPhanMem.domain.table;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -8,60 +9,46 @@ import com.uit.nhom7.KiemThuPhanMem.util.UuidV7Generator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "shipping_address")
+@Table(name = "shipping_fee_config", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_shipping_fee_province_key", columnNames = "province_key")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ShippingAddress {
+public class ShippingFeeConfig {
     @Id
     @Column(columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @NotBlank(message = "Province must not be empty")
+    @Column(nullable = false)
     private String province;
 
     @Column(name = "province_code", length = 20)
     private String provinceCode;
 
-    @NotBlank(message = "Ward must not be empty")
-    private String ward;
+    @Column(name = "province_key", nullable = false, unique = true)
+    private String provinceKey;
 
-    @Column(name = "ward_code", length = 20)
-    private String wardCode;
-
-    @NotBlank(message = "Detail must not be empty")
-    private String detail;
-
-    @Column(name = "is_default")
-    private boolean defaultAddress;
+    @Column(name = "shipping_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal shippingFee;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
-
-    @Column(name = "deleted_at")
-    private Instant deletedAt;
 
     @Column(name = "created_by", length = 100)
     private String createdBy;

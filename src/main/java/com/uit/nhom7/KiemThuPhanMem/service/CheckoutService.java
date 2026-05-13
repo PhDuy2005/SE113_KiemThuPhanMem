@@ -46,7 +46,6 @@ import com.uit.nhom7.KiemThuPhanMem.util.error.BusinessException;
 @Service
 public class CheckoutService {
     private static final String ACTIVE_ACCOUNT_STATUS = "ACTIVE";
-    private static final BigDecimal DEFAULT_SHIPPING_FEE = BigDecimal.ZERO;
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -56,6 +55,7 @@ public class CheckoutService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentRepository paymentRepository;
     private final ShippingAddressRepository shippingAddressRepository;
+    private final ShippingFeeConfigService shippingFeeConfigService;
     private final UserRepository userRepository;
     private final VoucherRepository voucherRepository;
     private final EmailService emailService;
@@ -69,6 +69,7 @@ public class CheckoutService {
             PaymentMethodRepository paymentMethodRepository,
             PaymentRepository paymentRepository,
             ShippingAddressRepository shippingAddressRepository,
+            ShippingFeeConfigService shippingFeeConfigService,
             UserRepository userRepository,
             VoucherRepository voucherRepository,
             EmailService emailService) {
@@ -80,6 +81,7 @@ public class CheckoutService {
         this.paymentMethodRepository = paymentMethodRepository;
         this.paymentRepository = paymentRepository;
         this.shippingAddressRepository = shippingAddressRepository;
+        this.shippingFeeConfigService = shippingFeeConfigService;
         this.userRepository = userRepository;
         this.voucherRepository = voucherRepository;
         this.emailService = emailService;
@@ -150,7 +152,9 @@ public class CheckoutService {
             voucher.setUsedCount((voucher.getUsedCount() == null ? 0 : voucher.getUsedCount()) + 1);
             voucherRepository.save(voucher);
         }
-        BigDecimal totalAmount = totalProductAmount.add(DEFAULT_SHIPPING_FEE).subtract(discountAmount).max(BigDecimal.ZERO);
+        BigDecimal shippingFee = shippingFeeConfigService.getShippingFeeForProvince(
+                shippingAddress.getProvinceCode(), shippingAddress.getProvince());
+        BigDecimal totalAmount = totalProductAmount.add(shippingFee).subtract(discountAmount).max(BigDecimal.ZERO);
 
         deductStock(selectedItems);
 
@@ -158,7 +162,7 @@ public class CheckoutService {
                 .user(currentUser)
                 .status(Order.PENDING_STATUS)
                 .totalProductAmount(totalProductAmount)
-                .shippingFee(DEFAULT_SHIPPING_FEE)
+                .shippingFee(shippingFee)
                 .discountAmount(discountAmount)
                 .totalAmount(totalAmount)
                 .shippingAddressSnapshot(buildShippingAddressSnapshot(shippingAddress))
@@ -189,7 +193,7 @@ public class CheckoutService {
                 .orderId(order.getId())
                 .status(order.getStatus())
                 .totalProductAmount(totalProductAmount)
-                .shippingFee(DEFAULT_SHIPPING_FEE)
+                .shippingFee(shippingFee)
                 .discountAmount(discountAmount)
                 .totalAmount(totalAmount)
                 .paymentId(payment.getId())

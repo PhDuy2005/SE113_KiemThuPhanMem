@@ -3,7 +3,9 @@ package com.uit.nhom7.KiemThuPhanMem.service;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,14 +34,17 @@ public class RolePermissionMatrixService {
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     public RolePermissionMatrixService(
             PermissionRepository permissionRepository,
             RoleRepository roleRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            AuditLogService auditLogService) {
         this.permissionRepository = permissionRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -55,6 +60,14 @@ public class RolePermissionMatrixService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, MSG110);
         }
 
+        Map<Long, Set<Long>> oldValueByRole = roleRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        Role::getId,
+                        role -> role.getPermissions() == null
+                                ? Set.of()
+                                : role.getPermissions().stream()
+                                        .map(Permission::getId)
+                                        .collect(Collectors.toSet())));
         Set<Long> submittedRoleIds = new HashSet<>();
         for (ReqSyncRolePermissionsDTO.RolePermissionSetting setting : request.getRolePermissions()) {
             if (setting == null || setting.getRoleId() == null || !submittedRoleIds.add(setting.getRoleId())) {
@@ -76,6 +89,13 @@ public class RolePermissionMatrixService {
         }
 
         refreshAuthorizationCache();
+        auditLogService.record(
+                "UPDATE",
+                "ROLE_PERMISSION_MATRIX",
+                "ROLE_PERMISSION_MATRIX",
+                oldValueByRole.toString(),
+                request.getRolePermissions().toString(),
+                MSG109);
         return buildMatrix(MSG109);
     }
 

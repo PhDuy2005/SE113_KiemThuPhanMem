@@ -469,6 +469,7 @@ public class OrderService {
                 .discountAmount(order.getDiscountAmount())
                 .totalAmount(order.getTotalAmount())
                 .paymentId(payment == null ? null : payment.getId())
+                .paymentMethodName(payment == null || payment.getPaymentMethod() == null ? null : payment.getPaymentMethod().getName())
                 .paymentStatus(payment == null ? null : payment.getStatus())
                 .trackingNumber(order.getTrackingNumber())
                 .orderingTime(order.getCreatedAt())

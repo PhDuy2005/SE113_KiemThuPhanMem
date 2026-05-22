@@ -25,7 +25,7 @@ const userSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  role: z.enum(['Staff', 'Customer', 'Business Admin', 'Technical Admin']),
+  role: z.enum(['Staff', 'Customer', 'BUSINESS_ADMIN', 'Technical Admin']),
   status: z.nativeEnum(UserStatus),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
 });
@@ -137,7 +137,7 @@ export function UserForm({ initialData, onSubmit, isLoading, forcedRole, current
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="Staff">Sales Staff</SelectItem>
-                    <SelectItem value="Business Admin">Business Admin</SelectItem>
+                    <SelectItem value="BUSINESS_ADMIN">Business Admin</SelectItem>
                     {currentUserRole === 'Technical Admin' && (
                       <SelectItem value="Technical Admin">Technical Admin</SelectItem>
                     )}

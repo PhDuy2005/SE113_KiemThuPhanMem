@@ -2,14 +2,16 @@
  * API Client tập trung cho TechSales FE.
  * Xử lý: Base URL, JWT Token, Response parsing, Error handling.
  *
- * Backend trả về chuẩn: { success: boolean, message: string, data: T }
+ * Backend trả về chuẩn mới (RestResponse): { statusCode: number, error: string, message: string, data: T }
  */
 
-const BASE_URL = (import.meta as any).env.VITE_API_BASE_URL;
+const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080';
+const BASE_URL = `${envBaseUrl}/api/v1`;
 
 // ─── Types ───────────────────────────────────────────────────
 export interface ApiResponse<T> {
-  success: boolean;
+  statusCode: number;
+  error?: string;
   message: string;
   data: T;
 }
@@ -69,15 +71,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   if (!response.ok) {
+    let errorMessage = result.message || result.error || `HTTP Error ${response.status}: ${response.statusText}`;
+    if (Array.isArray(result.message)) {
+      errorMessage = result.message.join('; ');
+    } else if (typeof result.message === 'object' && result.message !== null) {
+      errorMessage = JSON.stringify(result.message);
+    }
+
     throw new ApiError(
-      result.message || `HTTP Error ${response.status}: ${response.statusText}`,
+      errorMessage,
       response.status,
       result.data,
     );
   }
 
-  // Backend wraps response in { success, message, data }
-  return result.data as T;
+  // Backend wraps response in { statusCode, error, message, data }
+  return result.data !== undefined ? (result.data as T) : (result as T);
 }
 
 // ─── Convenience Methods ────────────────────────────────────

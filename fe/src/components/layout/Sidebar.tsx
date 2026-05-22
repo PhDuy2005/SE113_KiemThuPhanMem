@@ -18,7 +18,7 @@ import {
 import { cn } from '../../utils/cn';
 
 interface SidebarProps {
-  role: 'Customer' | 'Staff' | 'Business Admin' | 'Technical Admin';
+  role: 'Customer' | 'Staff' | 'BUSINESS_ADMIN' | 'Technical Admin';
 }
 
 interface NavItem {
@@ -42,7 +42,7 @@ const roleNavItems: Record<string, NavItem[]> = {
     { icon: <ShoppingCart className="h-5 w-5" />, label: 'Orders', path: '/sales/orders' },
     { icon: <Star className="h-5 w-5" />, label: 'Reviews', path: '/sales/reviews' },
   ],
-  'Business Admin': [
+  BUSINESS_ADMIN: [
     { icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard', path: '/business' },
     { icon: <BarChart3 className="h-5 w-5" />, label: 'Analytics', path: '/business/analytics' },
     { icon: <Package className="h-5 w-5" />, label: 'Products', path: '/business/products' },

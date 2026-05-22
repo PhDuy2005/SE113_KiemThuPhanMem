@@ -4,7 +4,7 @@ export enum UserStatus {
   BLOCKED = 'BLOCKED'
 }
 
-export type UserRole = 'Staff' | 'Customer' | 'Business Admin' | 'Technical Admin';
+export type UserRole = 'Staff' | 'Customer' | 'BUSINESS_ADMIN' | 'Technical Admin';
 
 export interface AuthUser {
   id: string;

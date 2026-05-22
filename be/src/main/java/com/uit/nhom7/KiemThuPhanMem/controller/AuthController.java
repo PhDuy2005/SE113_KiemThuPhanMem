@@ -93,7 +93,10 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUserDB.getId(),
                 currentUserDB.getEmail(),
-                currentUserDB.getUserFullName());
+                currentUserDB.getUserFullName(),
+                currentUserDB.getPhoneNumber(),
+                currentUserDB.getAvatarUrl(),
+                currentUserDB.getDateOfBirth());
         resLoginDTO.setUser(userLogin);
 
         if (currentUserDB.getRole() != null) {
@@ -167,7 +170,10 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUserDB.getId(),
                 currentUserDB.getEmail(),
-                currentUserDB.getUserFullName());
+                currentUserDB.getUserFullName(),
+                currentUserDB.getPhoneNumber(),
+                currentUserDB.getAvatarUrl(),
+                currentUserDB.getDateOfBirth());
 
         ResLoginDTO.UserGetAccount userGetAccount = new ResLoginDTO.UserGetAccount();
         userGetAccount.setUser(userLogin);
@@ -205,7 +211,10 @@ public class AuthController {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 currentUser.getId(),
                 currentUser.getEmail(),
-                currentUser.getUserFullName());
+                currentUser.getUserFullName(),
+                currentUser.getPhoneNumber(),
+                currentUser.getAvatarUrl(),
+                currentUser.getDateOfBirth());
 
         ResLoginDTO resLoginDTO = new ResLoginDTO();
         resLoginDTO.setUser(userLogin);

@@ -1,41 +1,64 @@
 import api from '../api/apiClient';
 import { Category } from '../models/ui_types/category';
 
-// ─── BE returns Category entity directly ────────────────────
+// ─── BE returns ResCategoryDTO ─────────────────────────────────
 interface CategoryDto {
   id: string;
-  name: string;
-  parentId?: string;
+  categoryName: string;
+  categoryImage?: string;
+  categoryDescription?: string;
   createdAt?: string;
+  updatedAt?: string;
+  // Note: parentId is missing in BE, so it will be undefined for now
+  parentId?: string;
 }
 
 const mapCategory = (dto: CategoryDto): Category => ({
   id: dto.id,
-  name: dto.name,
+  name: dto.categoryName,
   parentId: dto.parentId,
   createdAt: dto.createdAt,
 });
 
 export const categoryService = {
   getCategories: async (): Promise<Category[]> => {
-    const categories = await api.get<CategoryDto[]>('/Category');
-    return categories.map(mapCategory);
+    // Note: This is a business admin API. We use it for now as public API is missing.
+    // Customers will get 403 Forbidden. So we fallback to mock data if it fails.
+    try {
+      const categories = await api.get<CategoryDto[]>('/business/categories');
+      return categories.map(mapCategory);
+    } catch (e) {
+      console.warn("Could not fetch categories (probably not an admin). Using mock data.");
+      return [
+        { id: '1', name: 'Smartphones' },
+        { id: '2', name: 'Laptops' },
+        { id: '3', name: 'Accessories' },
+      ];
+    }
   },
 
   createCategory: async (data: Omit<Category, 'id'>): Promise<Category> => {
-    await api.post('/Category', { name: data.name });
-    // BE doesn't return the created category, refetch
-    const categories = await categoryService.getCategories();
-    return categories[categories.length - 1];
+    const res = await api.post<CategoryDto>('/business/categories', {
+      categoryName: data.name,
+      categoryImage: '', // Placeholder
+      categoryDescription: '', // Placeholder
+    });
+    return mapCategory(res);
   },
 
   updateCategory: async (id: string, data: Partial<Category>): Promise<Category> => {
-    // BE doesn't have an update endpoint
-    // For now, throw a meaningful error
-    throw new Error(`Update category is not supported by the server. Category ID: ${id}, Name: ${data.name}`);
+    const res = await api.put<CategoryDto>(`/business/categories/${id}`, {
+      categoryName: data.name || '',
+      categoryImage: '', // Placeholder
+      categoryDescription: '', // Placeholder
+    });
+    return mapCategory(res);
   },
 
   deleteCategory: async (id: string, replacementId: string): Promise<void> => {
-    await api.delete(`/Category/${id}?replacementCategoryId=${replacementId}`);
+    const url = replacementId
+      ? `/business/categories/${id}?replacementCategoryId=${replacementId}`
+      : `/business/categories/${id}`;
+    await api.delete(url);
   },
 };

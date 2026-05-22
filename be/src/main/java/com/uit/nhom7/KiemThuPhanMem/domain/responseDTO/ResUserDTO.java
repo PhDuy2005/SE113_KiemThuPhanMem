@@ -19,6 +19,8 @@ public class ResUserDTO {
     private String email;
     private String name;
     private String phoneNumber;
+    private String avatarUrl;
+    private Instant dateOfBirth;
     private String accountStatus;
 
     @JsonProperty("role")

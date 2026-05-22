@@ -43,6 +43,12 @@ public class User {
     private String userFullName;
 
     private String phoneNumber;
+    
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "date_of_birth")
+    private Instant dateOfBirth;
 
     @NotBlank(message = "Không được để trống email")
     private String email;

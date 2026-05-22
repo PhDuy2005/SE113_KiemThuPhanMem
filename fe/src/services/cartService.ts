@@ -2,6 +2,7 @@ import api from '../api/apiClient';
 import { CartItem } from '../models/ui_types/cart';
 
 // ─── BE Response Types ──────────────────────────────────────
+// Expected from the missing GET /cart API
 interface CartProductDto {
   id: string;
   name: string;
@@ -42,6 +43,7 @@ const mapCartItems = (dto: CartResponseDto): CartItem[] => {
 
 export const cartService = {
   getCart: async (): Promise<CartItem[]> => {
+    // API missing in BE. Assumes it will be at /cart
     const cart = await api.get<CartResponseDto>('/cart');
     return mapCartItems(cart);
   },
@@ -60,7 +62,7 @@ export const cartService = {
       // Remove item if quantity drops below 1
       return cartService.removeItem(productId);
     }
-    await api.put(`/cart/items/${productId}`, { quantity });
+    await api.put(`/cart/items/${productId}`, { newQuantity: quantity });
     return cartService.getCart();
   },
 
@@ -70,9 +72,7 @@ export const cartService = {
   },
 
   clearCart: async (): Promise<void> => {
-    // BE doesn't have a clear cart endpoint
-    // Remove items one by one
-    const items = await cartService.getCart();
-    await Promise.all(items.map(item => api.delete(`/cart/items/${item.productId}`)));
+    // API missing in BE. Assumes it will be at /cart
+    await api.delete('/cart');
   },
 };

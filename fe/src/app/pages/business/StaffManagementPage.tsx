@@ -151,7 +151,7 @@ export function StaffManagementPage() {
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'Technical Admin': return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">Tech Admin</Badge>;
-      case 'Business Admin': return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Bus Admin</Badge>;
+      case 'BUSINESS_ADMIN': return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Bus Admin</Badge>;
       case 'Staff': return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Sales Staff</Badge>;
       default: return <Badge variant="outline">{role}</Badge>;
     }
@@ -195,7 +195,7 @@ export function StaffManagementPage() {
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
             <SelectItem value="Staff">Sales Staff</SelectItem>
-            <SelectItem value="Business Admin">Business Admin</SelectItem>
+            <SelectItem value="BUSINESS_ADMIN">Business Admin</SelectItem>
             <SelectItem value="Technical Admin">Technical Admin</SelectItem>
           </SelectContent>
         </Select>
@@ -237,18 +237,10 @@ export function StaffManagementPage() {
                     onClick={() => handleRowClick(user)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full border bg-muted overflow-hidden shadow-sm flex-shrink-0">
-                          <img 
-                            src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                            alt={user.fullName} 
-                          />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{user.fullName}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 break-all">
-                            <Mail className="h-3 w-3" /> {user.email}
-                          </div>
+                      <div>
+                        <div className="font-semibold">{user.fullName}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 break-all">
+                          <Mail className="h-3 w-3" /> {user.email}
                         </div>
                       </div>
                     </TableCell>
@@ -300,12 +292,6 @@ export function StaffManagementPage() {
             <div className="grid gap-6 py-4">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="h-20 w-20 rounded-full border bg-muted overflow-hidden shadow-sm flex-shrink-0">
-                    <img 
-                      src={selectedUser.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedUser.email}`} 
-                      alt={selectedUser.fullName} 
-                    />
-                  </div>
                   <div>
                     <h2 className="text-2xl font-bold break-all">{selectedUser.fullName}</h2>
                     <p className="text-muted-foreground flex items-center gap-1 break-all">

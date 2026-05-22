@@ -12,13 +12,15 @@ import org.mockito.Mockito;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResProductDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
+import com.uit.nhom7.KiemThuPhanMem.repository.ProductImageRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
 
 class ProductSearchServiceTest {
     @Test
     void searchShouldMatchBrandTokens() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);
-        ProductSearchService productSearchService = new ProductSearchService(productRepository);
+        ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
+        ProductSearchService productSearchService = new ProductSearchService(productRepository, productImageRepository);
         Product expectedProduct = Product.builder()
                 .id(UUID.randomUUID())
                 .name("Body wash shampoo 3 in 1")
@@ -47,7 +49,8 @@ class ProductSearchServiceTest {
     @Test
     void searchShouldMatchVietnameseTypoAndTokenQuery() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);
-        ProductSearchService productSearchService = new ProductSearchService(productRepository);
+        ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
+        ProductSearchService productSearchService = new ProductSearchService(productRepository, productImageRepository);
         Product expectedProduct = Product.builder()
                 .id(UUID.randomUUID())
                 .name("sữa tắm gội toàn thân 3 trong 1 X-Men")

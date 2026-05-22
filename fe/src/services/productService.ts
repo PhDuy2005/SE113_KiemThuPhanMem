@@ -2,53 +2,36 @@ import api from '../api/apiClient';
 import { Product, ProductStatus } from '../models/ui_types/product';
 
 // ─── BE Response Types ──────────────────────────────────────
-interface ProductImageDto {
-  id: string;
-  imageUrl: string;
-  isPrimary: boolean;
-}
-
-interface ProductResponseDto {
+interface ResProductDTO {
   id: string;
   name: string;
   description: string;
   price: number;
+  status: string;
   brand: string;
   categoryId: string;
-  images: ProductImageDto[];
-  stockStatus?: string;
-  availableQuantity?: number;
-  inventory?: { availableQuantity: number };
-  status: ProductStatus;
-  rating: number;
-}
-
-interface ProductDetailDto extends ProductResponseDto {
-  stockStatus: string;
-  availableQuantity: number;
+  stock: number;
+  imageUrls: string[];
+  message: string;
 }
 
 // ─── Mapping BE → FE ────────────────────────────────────────
-const mapProduct = (dto: ProductResponseDto): Product => ({
+const mapProduct = (dto: ResProductDTO): Product => ({
   id: dto.id,
   name: dto.name,
   description: dto.description,
   price: dto.price,
   brand: dto.brand,
   categoryId: dto.categoryId,
-  imageUrl: dto.images?.find(img => img.isPrimary)?.imageUrl || dto.images?.[0]?.imageUrl,
-  images: dto.images?.map(img => img.imageUrl),
-  stock: dto.availableQuantity ?? dto.inventory?.availableQuantity ?? 0,
-  status: dto.status,
-  rating: dto.rating,
+  imageUrl: dto.imageUrls?.[0] || '',
+  images: dto.imageUrls || [],
+  stock: dto.stock || 0,
+  status: dto.status as ProductStatus,
+  rating: 0, // BE no longer returns rating
   createdAt: '',
 });
 
-const mapProductDetail = (dto: ProductDetailDto): Product => ({
-  ...mapProduct(dto),
-});
-
-// ─── Public Interface (signatures kept compatible) ──────────
+// ─── Public Interface ──────────────────────────────────────
 export interface ProductQueryParams {
   search?: string;
   categoryIds?: string;
@@ -61,32 +44,30 @@ export interface ProductQueryParams {
 
 export const productService = {
   getProducts: async (params?: ProductQueryParams): Promise<Product[]> => {
-    const query = new URLSearchParams();
+    if (params?.search) {
+      const res = await api.get<ResProductDTO[]>(`/products/search?keyword=${params.search}&limit=${params.limit || 100}`);
+      return res.map(mapProduct);
+    }
 
-    if (params?.search) query.set('keyword', params.search);
+    const query = new URLSearchParams();
     if (params?.categoryIds && params.categoryIds !== 'all') {
       query.set('categoryIds', params.categoryIds);
     }
-
-    console.log(params);
     
     if (params?.sortBy) {
-      // Map FE sort to BE SortOrder enum (ASC=1, DESC=2)
-      // Note: BE only supports price sorting via ASC/DESC in SearchProductsAsync
       const sortMap: Record<string, string> = {
-        price_asc: 'ASC',
-        price_desc: 'DESC',
+        price_asc: 'asc',
+        price_desc: 'desc',
       };
-      
       const mappedSort = sortMap[params.sortBy];
       if (mappedSort) {
-        query.set('sortOrder', mappedSort);
+        query.set('sortPrice', mappedSort);
       }
     }
 
     const queryStr = query.toString();
-    const products = await api.get<ProductResponseDto[]>(
-      `/product${queryStr ? `?${queryStr}` : ''}`,
+    const products = await api.get<ResProductDTO[]>(
+      `/products${queryStr ? `?${queryStr}` : ''}`,
     );
 
     let result = products.map(mapProduct);
@@ -110,33 +91,22 @@ export const productService = {
   },
 
   getAdminProducts: async (params?: { keyword?: string; categoryId?: string; status?: ProductStatus; pageNumber?: number; pageSize?: number }): Promise<{ items: Product[], totalCount: number }> => {
-    const query = new URLSearchParams();
-    if (params?.keyword) query.set('keyword', params.keyword);
-    if (params?.categoryId) query.set('categoryId', params.categoryId);
-    if (params?.status) query.set('status', params.status);
-    if (params?.pageNumber) query.set('pageNumber', params.pageNumber.toString());
-    if (params?.pageSize) query.set('pageSize', params.pageSize.toString());
-
-    const queryStr = query.toString();
-    const response = await api.get<{ items: ProductResponseDto[], totalCount: number }>(
-      `/admin/products${queryStr ? `?${queryStr}` : ''}`,
-    );
-
+    // API missing in BE. Assumes an admin endpoint would be like /business/products
+    // Currently fallback to public getProducts since there is no admin listing API.
+    const products = await productService.getProducts({ search: params?.keyword });
     return {
-      items: response.items.map(mapProduct),
-      totalCount: response.totalCount
+      items: products,
+      totalCount: products.length
     };
   },
 
   getProductById: async (id: string): Promise<Product> => {
-    const dto = await api.get<ProductDetailDto>(`/product/${id}`);
-    return mapProductDetail(dto);
+    const dto = await api.get<ResProductDTO>(`/products/${id}`);
+    return mapProduct(dto);
   },
 
   getAllBrands: async (): Promise<string[]> => {
-    // BE doesn't have a dedicated brands endpoint
-    // Derive from product list
-    const products = await api.get<ProductResponseDto[]>('/product');
+    const products = await productService.getProducts();
     const brands = products.map(p => p.brand).filter(Boolean);
     return Array.from(new Set(brands));
   },
@@ -144,56 +114,52 @@ export const productService = {
   createProduct: async (product: any): Promise<Product> => {
     const formData = new FormData();
     formData.append('name', product.name);
-    formData.append('description', product.description);
+    if (product.description) formData.append('description', product.description);
     formData.append('price', product.price.toString());
-    formData.append('brand', product.brand);
+    formData.append('brand', product.brand || '');
     formData.append('categoryId', product.categoryId);
-    formData.append('initialStock', (product.stock || 0).toString());
+    formData.append('stock', (product.stock || 0).toString());
 
     if (product.imageFiles && product.imageFiles.length > 0) {
       for (let i = 0; i < product.imageFiles.length; i++) {
-        formData.append('imageFiles', product.imageFiles[i]);
+        formData.append('images', product.imageFiles[i]);
       }
     }
 
-    const result = await api.post<ProductResponseDto>('/admin/products', formData);
+    const result = await api.post<ResProductDTO>('/business/products', formData);
     return mapProduct(result);
   },
 
   updateProduct: async (id: string, productData: Partial<Product>): Promise<Product> => {
-    await api.put(`/admin/products/${id}`, {
-      name: productData.name,
-      description: productData.description,
-      price: productData.price,
-      brand: productData.brand,
-      categoryId: productData.categoryId,
-      images: productData.images?.map((url, i) => ({
-        imageUrl: url,
-        isPrimary: i === 0,
-      })) || [],
-    });
-    // Refetch to get updated product
+    // NOTE: BE only supports updating price and stock. Update general info is missing.
+    if (productData.price !== undefined) {
+      await api.patch(`/business/products/${id}/price`, { newPrice: productData.price });
+    }
+    if (productData.stock !== undefined) {
+      await api.patch(`/business/products/${id}/stock`, { newStock: productData.stock });
+    }
     return productService.getProductById(id);
   },
 
   deleteProduct: async (id: string): Promise<void> => {
-    // BE only supports discontinue, not delete
-    await api.patch(`/admin/products/${id}/status`);
+    await productService.toggleProductDiscontinue(id);
   },
 
   toggleProductDiscontinue: async (id: string): Promise<Product> => {
-    await api.patch(`/admin/products/${id}/status`);
-    // Return a dummy object with the updated status to satisfy the mutation signature
-    // and avoid calling the public GET endpoint which would return 404 for discontinued products.
+    await api.patch(`/business/products/${id}/discontinue`);
     return {
       id,
       status: ProductStatus.DISCONTINUED,
     } as Product;
   },
+  
   updateInventory: async (id: string, value: number, type: 'ADD' | 'SET'): Promise<void> => {
-    await api.patch(`/admin/products/${id}/inventory`, {
-      value,
-      type: type === 'ADD' ? 1 : 2 // Map to BE enum values
-    });
+    // In BE, update stock takes the new absolute value.
+    if (type === 'SET') {
+      await api.patch(`/business/products/${id}/stock`, { newStock: value });
+    } else {
+      const current = await productService.getProductById(id);
+      await api.patch(`/business/products/${id}/stock`, { newStock: current.stock + value });
+    }
   },
 };

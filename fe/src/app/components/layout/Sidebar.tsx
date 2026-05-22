@@ -19,7 +19,7 @@ import {
 import { cn } from '../../utils/cn';
 
 interface SidebarProps {
-  role: 'Customer' | 'Staff' | 'Business Admin' | 'Technical Admin';
+  role: 'Customer' | 'Staff' | 'BUSINESS_ADMIN' | 'Technical Admin';
 }
 
 interface NavItem {
@@ -44,7 +44,7 @@ const roleNavItems: Record<string, NavItem[]> = {
     { icon: <Package className="h-5 w-5" />, label: 'Products', path: '/sales/products' },
     { icon: <Users className="h-5 w-5" />, label: 'Customers', path: '/sales/customers' },
   ],
-  'Business Admin': [
+  BUSINESS_ADMIN: [
     { icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard', path: '/business' },
     { icon: <Package className="h-5 w-5" />, label: 'Products', path: '/business/products' },
     { icon: <FolderTree className="h-5 w-5" />, label: 'Categories', path: '/business/categories' },

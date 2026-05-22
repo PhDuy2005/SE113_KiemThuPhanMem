@@ -1,8 +1,20 @@
 import api, { PagedResponse } from '../api/apiClient';
 import { Review, ReviewStatus } from '../models/ui_types/review';
 
+// ─── BE Pagination Type ─────────────────────────────────────
+interface ResultPaginationDTO<T> {
+  meta: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  result: T[];
+  message: string;
+}
+
 // ─── BE Response Types ──────────────────────────────────────
-interface ReviewResponseItemDto {
+interface ResReviewResponseDTO {
   id: string;
   reviewId: string;
   userId: string;
@@ -11,53 +23,39 @@ interface ReviewResponseItemDto {
   createdAt: string;
 }
 
-interface ReviewStaffDto {
+interface ResReviewDTO {
   id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  productId: string;
+  productName: string;
   rating: number;
   comment: string;
-  productName?: string;
   status: string;
-  violationReason?: string;
   createdAt: string;
-  profile: {
-    fullName: string;
-    avatarUrl?: string;
-  };
-  responses: ReviewResponseItemDto[];
+  responses: ResReviewResponseDTO[];
 }
 
-interface ReviewItemDto {
-  id: string;
-  rating: number;
-  comment?: string;
-  createdAt: string;
-  profile: {
-    fullName: string;
-    avatarUrl?: string;
-  };
-  responses: ReviewResponseItemDto[];
-}
-
-interface ProductReviewsResponseDto {
+interface ResProductReviewsDTO {
   averageRating: number;
   totalCount: number;
-  pageNumber: number;
-  pageSize: number;
-  items: ReviewItemDto[];
+  reviews: ResReviewDTO[];
+  message?: string;
 }
 
 // ─── Mapping ────────────────────────────────────────────────
-const mapStaffReview = (dto: ReviewStaffDto): Review => ({
+const mapReview = (dto: ResReviewDTO): Review => ({
   id: dto.id,
-  userId: '',
-  userName: dto.profile?.fullName || 'Anonymous',
-  userAvatar: dto.profile?.avatarUrl,
-  productId: '',
+  userId: dto.userId,
+  userName: dto.userName || 'Anonymous',
+  userAvatar: dto.userAvatar,
+  productId: dto.productId,
+  productName: dto.productName,
   rating: dto.rating,
   comment: dto.comment || '',
   status: (dto.status as ReviewStatus) || ReviewStatus.VISIBLE,
   createdAt: dto.createdAt,
-  productName: dto.productName,
   responses: dto.responses?.map(r => ({
     id: r.id,
     reviewId: r.reviewId,
@@ -70,44 +68,26 @@ const mapStaffReview = (dto: ReviewStaffDto): Review => ({
 
 export const reviewService = {
   getReviewsByProductId: async (productId: string, pageNumber = 1, pageSize = 100): Promise<{ reviews: Review[], averageRating: number, totalCount: number }> => {
-    const data = await api.get<ProductReviewsResponseDto>(
-      `/Review/product/${productId}?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    // Note: BE API does not currently accept pagination parameters for this endpoint
+    const data = await api.get<ResProductReviewsDTO>(
+      `/products/${productId}/reviews`,
     );
-    const reviews = data.items.map((dto): Review => ({
-      id: dto.id,
-      userId: '',
-      userName: dto.profile?.fullName || 'Anonymous',
-      userAvatar: dto.profile?.avatarUrl,
-      productId: productId,
-      rating: dto.rating,
-      comment: dto.comment || '',
-      status: ReviewStatus.VISIBLE,
-      createdAt: dto.createdAt,
-      responses: dto.responses?.map(r => ({
-        id: r.id,
-        reviewId: r.reviewId,
-        userId: r.userId,
-        userName: r.userName,
-        content: r.content,
-        createdAt: r.createdAt,
-      })) || [],
-    }));
     return {
-      reviews,
+      reviews: data.reviews.map(mapReview),
       averageRating: data.averageRating,
       totalCount: data.totalCount,
     };
   },
 
   getAllReviews: async (pageNumber = 1, pageSize = 20): Promise<Review[]> => {
-    const paged = await api.get<PagedResponse<ReviewStaffDto>>(
-      `/Review/latest?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    const paged = await api.get<ResultPaginationDTO<ResReviewDTO>>(
+      `/staff/reviews?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.items.map(mapStaffReview);
+    return paged.result.map(mapReview);
   },
 
   submitReview: async (reviewData: { orderId: string; productId: string; ratingStars: number; reviewComment: string }): Promise<void> => {
-    await api.post('/Review', {
+    await api.post('/reviews', {
       orderId: reviewData.orderId,
       productId: reviewData.productId,
       ratingStars: reviewData.ratingStars,
@@ -117,11 +97,11 @@ export const reviewService = {
 
   moderateReview: async (id: string, status: ReviewStatus, reason = 'Hidden by staff'): Promise<void> => {
     if (status === ReviewStatus.HIDDEN) {
-      await api.put(`/Review/${id}/hide`, { reason });
+      await api.patch(`/staff/reviews/${id}/hide`, { reason });
     }
   },
 
   replyToReview: async (id: string, reply: string): Promise<void> => {
-    await api.post(`/Review/${id}/reply`, { content: reply });
+    await api.post(`/staff/reviews/${id}/responses`, { content: reply });
   },
 };

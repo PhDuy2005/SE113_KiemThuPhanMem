@@ -1,5 +1,6 @@
 package com.uit.nhom7.KiemThuPhanMem.domain.responseDTO;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,6 +27,9 @@ public class ResLoginDTO {
         private UUID id;
         private String email;
         private String name;
+        private String phoneNumber;
+        private String avatarUrl;
+        private Instant dateOfBirth;
     }
 
     @Data

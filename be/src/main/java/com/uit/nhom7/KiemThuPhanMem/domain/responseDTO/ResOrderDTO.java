@@ -23,6 +23,7 @@ public class ResOrderDTO {
     private BigDecimal discountAmount;
     private BigDecimal totalAmount;
     private UUID paymentId;
+    private String paymentMethodName;
     private String paymentStatus;
     private String trackingNumber;
     private Instant orderingTime;

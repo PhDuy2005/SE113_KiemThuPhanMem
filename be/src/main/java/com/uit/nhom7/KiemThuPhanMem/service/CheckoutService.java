@@ -93,9 +93,13 @@ public class CheckoutService {
         Cart cart = getCurrentUserCart(currentUser);
         List<CartItem> selectedItems = getSelectedCartItems(cart, request.getSelectedProductIds());
 
+        BigDecimal tempTotal = calculateItemsTotal(selectedItems);
         return ResCheckoutSelectionDTO.builder()
                 .selectedProductIds(request.getSelectedProductIds())
-                .tempTotalPrice(calculateItemsTotal(selectedItems))
+                .tempTotalPrice(tempTotal)
+                .shippingFee(BigDecimal.ZERO)
+                .discountAmount(BigDecimal.ZERO)
+                .totalPrice(tempTotal)
                 .checkoutUrl("/checkout")
                 .build();
     }
@@ -197,6 +201,7 @@ public class CheckoutService {
                 .discountAmount(discountAmount)
                 .totalAmount(totalAmount)
                 .paymentId(payment.getId())
+                .paymentMethodName(paymentMethod.getName())
                 .paymentStatus(payment.getStatus())
                 .message("Order created successfully")
                 .build();

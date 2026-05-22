@@ -11,4 +11,5 @@ import com.uit.nhom7.KiemThuPhanMem.domain.table.ProductImage;
 @Repository
 public interface ProductImageRepository extends JpaRepository<ProductImage, UUID> {
     List<ProductImage> findByProductIdOrderByPrimaryImageDescCreatedAtAsc(UUID productId);
+    List<ProductImage> findByProductIdIn(List<UUID> productIds);
 }

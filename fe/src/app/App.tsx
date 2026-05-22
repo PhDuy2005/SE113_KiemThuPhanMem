@@ -70,7 +70,7 @@ function AppContent() {
   const roleBasedDefaultPath: Record<string, string> = {
     Customer: '/customer',
     Staff: '/sales',
-    'Business Admin': '/business',
+    BUSINESS_ADMIN: '/business',
     'Technical Admin': '/technical/users',
   };
 
@@ -78,7 +78,7 @@ function AppContent() {
     const roleNames: Record<string, string> = {
       Customer: 'Customer',
       Staff: 'Staff',
-      'Business Admin': 'Business Admin',
+      BUSINESS_ADMIN: 'Business Admin',
       'Technical Admin': 'Technical Admin',
     };
     return roleNames[role] || role;
@@ -89,7 +89,6 @@ function AppContent() {
       role={user.role}
       userName={user.name}
       userRole={getRoleDisplayName(user.role)}
-      userAvatar={user.avatarUrl}
       onLogout={logout}
     >
       <Routes>
@@ -129,7 +128,7 @@ function AppContent() {
         )}
 
         {/* Business Routes */}
-        {user.role === 'Business Admin' && (
+        {user.role === 'BUSINESS_ADMIN' && (
           <>
             <Route path="/business" element={<BusinessDashboardPage />} />
             <Route path="/business/products" element={<ProductManagementPage />} />

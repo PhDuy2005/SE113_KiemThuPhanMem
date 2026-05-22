@@ -71,6 +71,7 @@ public class CategoryService {
 
         Category category = Category.builder()
                 .name(categoryName)
+                .parentId(request == null ? null : request.getParentId())
                 .imageUrl(cleanNullableText(request.getCategoryImage()))
                 .description(cleanNullableText(request.getCategoryDescription()))
                 .build();
@@ -88,6 +89,7 @@ public class CategoryService {
         }
 
         category.setName(categoryName);
+        category.setParentId(request == null ? null : request.getParentId());
         category.setImageUrl(cleanNullableText(request.getCategoryImage()));
         category.setDescription(cleanNullableText(request.getCategoryDescription()));
         return toDTO(categoryRepository.save(category), MSG76);
@@ -149,6 +151,7 @@ public class CategoryService {
         return ResCategoryDTO.builder()
                 .id(category.getId())
                 .categoryName(category.getName())
+                .parentId(category.getParentId())
                 .categoryImage(category.getImageUrl())
                 .categoryDescription(category.getDescription())
                 .createdAt(category.getCreatedAt())

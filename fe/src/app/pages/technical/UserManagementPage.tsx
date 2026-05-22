@@ -87,7 +87,7 @@ export function UserManagementPage() {
             <SelectItem value="all">All Roles</SelectItem>
             <SelectItem value="Customer">Customer</SelectItem>
             <SelectItem value="Staff">Sales Staff</SelectItem>
-            <SelectItem value="Business Admin">Business Admin</SelectItem>
+            <SelectItem value="BUSINESS_ADMIN">Business Admin</SelectItem>
             <SelectItem value="Technical Admin">Technical Admin</SelectItem>
           </SelectContent>
         </Select>

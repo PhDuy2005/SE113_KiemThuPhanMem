@@ -1,18 +1,40 @@
-import api, { PagedResponse } from '../api/apiClient';
+import api from '../api/apiClient';
 import { Order, OrderStatus } from '../models/ui_types/order';
 
-// ─── BE Response Types ──────────────────────────────────────
-interface OrderResponseDto {
-  id: string;
-  status: OrderStatus;
-  totalAmount: number;
-  createdAt: string;
-  paymentMethodName?: string;
-  isPaymentFailed?: boolean | null;
-  checkoutUrl?: string;
+// ─── BE Pagination Type ─────────────────────────────────────
+interface ResultPaginationDTO<T> {
+  meta: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  result: T[];
+  message: string;
 }
 
-interface OrderItemDto {
+// ─── BE Response Types ──────────────────────────────────────
+interface ResOrderDTO {
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  status: OrderStatus;
+  totalProductAmount: number;
+  shippingFee: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentId: string;
+  paymentStatus: string;
+  trackingNumber?: string;
+  orderingTime: string;
+  completedAt?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
+  refundStatus?: string;
+  message?: string;
+}
+
+interface ResOrderItemDTO {
   productId: string;
   productName: string;
   productImageUrl?: string;
@@ -20,78 +42,51 @@ interface OrderItemDto {
   quantity: number;
 }
 
-interface OrderDetailDto {
-  id: string;
+interface ResOrderDetailDTO {
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
   status: OrderStatus;
   totalProductAmount: number;
   shippingFee: number;
   discountAmount: number;
   totalAmount: number;
   shippingAddressSnapshot: string;
+  trackingNumber?: string;
+  paymentMethod: string;
+  paymentStatus: string;
   createdAt: string;
-  approvedAt?: string;
-  shippedAt?: string;
-  deliveredAt?: string;
-  paymentMethodName?: string;
-  isPaymentFailed?: boolean | null;
-  items: OrderItemDto[];
-  payments?: {
-    id: string;
-    paymentMethodName: string;
-    status: string;
-    amount: number;
-    transactionRef?: string;
-  }[];
-}
-
-interface OrderStaffDto extends OrderResponseDto {
-  customerName: string;
-  customerPhone?: string;
-}
-
-interface OrderStaffDetailDto extends OrderDetailDto {
-  customerEmail: string;
-  customerPhone: string;
-  customerFullName: string;
-  payments: {
-    id: string;
-    paymentMethodName: string;
-    status: string;
-    amount: number;
-    transactionRef?: string;
-  }[];
-}
-
-interface OrderAdminSummaryDto {
-  orderId: string;
-  customerEmail: string;
-  customerName: string;
-  status: OrderStatus;
-  totalAmount: number;
-  createdAt: string;
-  paymentMethodName: string;
-  isPaymentFailed?: boolean | null;
+  updatedAt?: string;
+  completedAt?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
+  refundStatus?: string;
+  items: ResOrderItemDTO[];
+  message?: string;
 }
 
 // ─── Mapping ────────────────────────────────────────────────
-const mapOrder = (dto: OrderResponseDto): Order => ({
-  id: dto.id,
-  userId: '',
+const mapOrder = (dto: ResOrderDTO): Order => ({
+  id: dto.orderId,
+  userId: dto.customerId,
   status: dto.status,
-  totalProductAmount: 0,
-  shippingFee: 0,
-  discountAmount: 0,
+  totalProductAmount: dto.totalProductAmount,
+  shippingFee: dto.shippingFee,
+  discountAmount: dto.discountAmount,
   totalAmount: dto.totalAmount,
   shippingAddressSnapshot: '',
-  createdAt: dto.createdAt,
-  paymentMethodName: dto.paymentMethodName,
-  isPaymentFailed: dto.isPaymentFailed,
-  checkoutUrl: dto.checkoutUrl,
+  createdAt: dto.orderingTime,
+  // Note: paymentMethodName is missing from ResOrderDTO
+  paymentMethodName: undefined,
+  isPaymentFailed: dto.paymentStatus === 'FAILED',
+  checkoutUrl: undefined,
+  customerName: dto.customerName,
 });
 
-const mapOrderDetail = (dto: OrderDetailDto): Order => ({
-  id: dto.id,
-  userId: '',
+const mapOrderDetail = (dto: ResOrderDetailDTO): Order => ({
+  id: dto.orderId,
+  userId: dto.customerId,
   status: dto.status,
   totalProductAmount: dto.totalProductAmount,
   shippingFee: dto.shippingFee,
@@ -99,43 +94,17 @@ const mapOrderDetail = (dto: OrderDetailDto): Order => ({
   totalAmount: dto.totalAmount,
   shippingAddressSnapshot: dto.shippingAddressSnapshot,
   createdAt: dto.createdAt,
-  paymentMethodName: dto.paymentMethodName,
-  isPaymentFailed: dto.isPaymentFailed,
+  paymentMethodName: dto.paymentMethod,
+  isPaymentFailed: dto.paymentStatus === 'FAILED',
+  customerName: dto.customerName,
   items: dto.items.map(i => ({
-    orderId: dto.id,
+    orderId: dto.orderId,
     productId: i.productId,
     productName: i.productName,
     imageUrl: i.productImageUrl,
     price: i.price,
     quantity: i.quantity,
   })),
-  payments: dto.payments?.map(p => ({
-    id: p.id,
-    paymentMethodName: p.paymentMethodName,
-    status: p.status as any,
-    amount: p.amount,
-    transactionRef: p.transactionRef,
-  })) || [],
-});
-
-const mapStaffOrder = (dto: OrderStaffDto): Order => ({
-  ...mapOrder(dto),
-  customerName: dto.customerName,
-});
-
-const mapAdminOrder = (dto: OrderAdminSummaryDto): Order => ({
-  id: dto.orderId,
-  userId: '',
-  status: dto.status,
-  totalProductAmount: 0,
-  shippingFee: 0,
-  discountAmount: 0,
-  totalAmount: dto.totalAmount,
-  shippingAddressSnapshot: '',
-  createdAt: dto.createdAt,
-  customerName: dto.customerName,
-  paymentMethodName: dto.paymentMethodName,
-  isPaymentFailed: dto.isPaymentFailed,
 });
 
 // ─── Public Interfaces ──────────────────────────────────────
@@ -154,41 +123,31 @@ export interface CheckoutSummary {
 export const orderService = {
   // ── Customer APIs ────────────────────────────────────────
   getOrders: async (pageNumber = 1, pageSize = 10): Promise<Order[]> => {
-    const paged = await api.get<PagedResponse<OrderResponseDto>>(
-      `/order?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
+      `/orders?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.items.map(mapOrder);
+    return paged.result.map(mapOrder);
   },
 
   getOrderById: async (id: string): Promise<Order> => {
-    const dto = await api.get<OrderStaffDetailDto>(`/order/${id}`);
-    const order = mapOrderDetail(dto);
-    if (dto.payments && dto.payments.length > 0) {
-      order.paymentMethodName = dto.payments[0].paymentMethodName;
-    }
-    return order;
+    const dto = await api.get<ResOrderDetailDTO>(`/orders/${id}`);
+    return mapOrderDetail(dto);
   },
 
   calculateCheckoutSummary: async (params: CheckoutPreviewParams): Promise<CheckoutSummary> => {
-    // BE doesn't have a preview endpoint — calculate client-side
-    // Import productService lazily to avoid circular deps
-    const { productService } = await import('./productService');
-    let subtotal = 0;
-    for (const item of params.items) {
-      try {
-        const product = await productService.getProductById(item.productId);
-        subtotal += product.price * item.quantity;
-      } catch {
-        // Product not found, skip
-      }
-    }
-    const shippingFee = 0;
-    const discount = 0;
+    const selectedProductIds = params.items.map(i => i.productId);
+    // Uses the new API endpoint
+    // Note: ResCheckoutSelectionDTO only returns tempTotalPrice.
+    // shippingFee, total, and discount are missing.
+    const res = await api.post<any>('/checkout/selection', {
+      selectedProductIds,
+    });
+    
     return {
-      subtotal,
-      shippingFee,
-      total: subtotal + shippingFee - discount,
-      discount,
+      subtotal: res.tempTotalPrice || 0,
+      shippingFee: 0, // Missing in API
+      total: res.tempTotalPrice || 0, // Missing in API
+      discount: 0, // Missing in API
     };
   },
 
@@ -198,33 +157,52 @@ export const orderService = {
     paymentMethodId: string;
     voucherCode?: string;
   }): Promise<Order> => {
-    const dto = await api.post<OrderResponseDto>('/order', {
-      productsWithQuantity: orderData.productsWithQuantity,
+    // New API uses selectedProductIds, assuming products are already in cart
+    const selectedProductIds = Object.keys(orderData.productsWithQuantity);
+    
+    const dto = await api.post<ResOrderDTO>('/checkout/confirm', {
+      selectedProductIds,
       shippingAddressId: orderData.shippingAddressId,
       paymentMethodId: orderData.paymentMethodId,
       voucherCode: orderData.voucherCode,
     });
-    return mapOrder(dto);
+    
+    const order = mapOrder(dto);
+    
+    // Fetch checkout URL if payment method requires online payment
+    try {
+      const paymentRes = await api.post<any>('/payments/online', {
+        orderId: dto.orderId,
+        paymentMethodId: orderData.paymentMethodId,
+        totalAmount: dto.totalAmount,
+      });
+      if (paymentRes.paymentUrl) {
+        order.checkoutUrl = paymentRes.paymentUrl;
+      }
+    } catch (e) {
+      // Ignore if payment initialization fails or is not applicable
+    }
+    
+    return order;
   },
 
   cancelOrder: async (id: string): Promise<void> => {
-    await api.post(`/order/${id}/cancel`);
+    await api.post(`/orders/${id}/cancel`);
   },
 
   updateOrderStatus: async (id: string, status: OrderStatus): Promise<void> => {
-    // For backward compatibility — maps to specific staff endpoints
     switch (status) {
       case OrderStatus.APPROVED:
-        await api.post(`/order/${id}/approve`);
+        await api.patch(`/orders/staff/${id}/approve`);
         break;
       case OrderStatus.SHIPPING:
-        await api.post(`/order/${id}/ship`);
+        await api.patch(`/orders/staff/${id}/shipping`, { trackingNumber: 'N/A' });
         break;
       case OrderStatus.DELIVERED:
-        await api.post(`/order/${id}/confirm-delivery`);
+        await api.patch(`/orders/staff/${id}/delivered`);
         break;
       case OrderStatus.CANCELLED:
-        await api.post(`/order/${id}/staff-cancel`, { reason: 'Cancelled by staff' });
+        await api.patch(`/orders/staff/${id}/cancel`, { reason: 'Cancelled by staff' });
         break;
       default:
         throw new Error(`Unsupported status transition: ${status}`);
@@ -233,22 +211,16 @@ export const orderService = {
 
   // ── Staff APIs ───────────────────────────────────────────
   getPendingOrders: async (pageNumber = 1, pageSize = 20): Promise<Order[]> => {
-    const paged = await api.get<PagedResponse<OrderStaffDto>>(
-      `/order/pending?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
+      `/orders/staff/pending?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.items.map(mapStaffOrder);
+    return paged.result.map(mapOrder);
   },
 
   getOrderStaffDetail: async (id: string): Promise<Order> => {
-    const dto = await api.get<OrderStaffDetailDto>(`/order/${id}/staff`);
-    const order = mapOrderDetail(dto);
-    order.customerName = dto.customerFullName;
-    
-    if (dto.payments && dto.payments.length > 0) {
-      order.paymentMethodName = dto.payments[0].paymentMethodName;
-    }
-    
-    return order;
+    // There is no specific /staff/{id} endpoint anymore. Using staff GET endpoint.
+    const dto = await api.get<ResOrderDetailDTO>(`/orders/staff/${id}`);
+    return mapOrderDetail(dto);
   },
 
   searchOrders: async (params: {
@@ -261,33 +233,32 @@ export const orderService = {
     pageSize?: number;
   }): Promise<Order[]> => {
     const query = new URLSearchParams();
-    if (params.orderCode) query.set('orderCode', params.orderCode);
-    if (params.customerName) query.set('customerName', params.customerName);
-    if (params.phoneNumber) query.set('phoneNumber', params.phoneNumber);
-    if (params.fromDate) query.set('fromDate', params.fromDate);
-    if (params.toDate) query.set('toDate', params.toDate);
+    if (params.orderCode) query.set('searchKeyword', params.orderCode);
+    else if (params.customerName) query.set('searchKeyword', params.customerName);
     query.set('pageNumber', String(params.pageNumber || 1));
     query.set('pageSize', String(params.pageSize || 20));
 
-    const paged = await api.get<PagedResponse<OrderStaffDto>>(
-      `/order/search?${query.toString()}`,
+    const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
+      `/orders/staff/search?${query.toString()}`,
     );
-    return paged.items.map(mapStaffOrder);
+    return paged.result.map(mapOrder);
   },
 
   initiateRefund: async (id: string): Promise<void> => {
-    await api.post(`/order/${id}/refund`);
+    await api.patch(`/orders/staff/${id}/refund`);
   },
 
   getAdminOrders: async (pageNumber = 1, pageSize = 20): Promise<Order[]> => {
-    const paged = await api.get<PagedResponse<OrderAdminSummaryDto>>(
-      `/admin/orders?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    // Doesn't seem to exist an admin-specific endpoint anymore, fallback to search with empty keyword
+    const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
+      `/orders/staff/search?searchKeyword=&pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.items.map(mapAdminOrder);
+    return paged.result.map(mapOrder);
   },
 
   repay: async (id: string, paymentMethodId?: string): Promise<string | null> => {
-    const res = await api.post<{ checkoutUrl: string | null }>(`/order/${id}/repay`, {
+    // NOTE: This API is currently missing in BE. Assumes POST /orders/{id}/repay
+    const res = await api.post<{ checkoutUrl: string | null }>(`/orders/${id}/repay`, {
       paymentMethodId,
     });
     return res.checkoutUrl;

@@ -7,6 +7,9 @@ import org.springframework.stereotype.Repository;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Inventory;
 
+import java.util.List;
+
 @Repository
 public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
+    List<Inventory> findByProductIdIn(List<UUID> productIds);
 }

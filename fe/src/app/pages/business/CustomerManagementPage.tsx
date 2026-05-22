@@ -201,18 +201,10 @@ export function CustomerManagementPage() {
                     onClick={() => handleRowClick(user)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full border bg-muted overflow-hidden shadow-sm flex-shrink-0">
-                          <img 
-                            src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                            alt={user.fullName} 
-                          />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{user.fullName}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 break-all">
-                            <Mail className="h-3 w-3" /> {user.email}
-                          </div>
+                      <div>
+                        <div className="font-semibold">{user.fullName}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 break-all">
+                          <Mail className="h-3 w-3" /> {user.email}
                         </div>
                       </div>
                     </TableCell>
@@ -270,12 +262,6 @@ export function CustomerManagementPage() {
             <div className="grid gap-6 py-4">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="h-20 w-20 rounded-full border bg-muted overflow-hidden shadow-sm flex-shrink-0">
-                    <img 
-                      src={selectedUser.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedUser.email}`} 
-                      alt={selectedUser.fullName} 
-                    />
-                  </div>
                   <div>
                     <h2 className="text-2xl font-bold break-all">{selectedUser.fullName}</h2>
                     <p className="text-muted-foreground flex items-center gap-1 break-all">

@@ -70,6 +70,8 @@ public class UserService {
                 .email(user.getEmail())
                 .name(user.getUserFullName())
                 .phoneNumber(user.getPhoneNumber())
+                .avatarUrl(user.getAvatarUrl())
+                .dateOfBirth(user.getDateOfBirth())
                 .accountStatus(user.getAccountStatus())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
@@ -89,7 +91,10 @@ public class UserService {
         ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                 user.getId(),
                 user.getEmail(),
-                user.getUserFullName());
+                user.getUserFullName(),
+                user.getPhoneNumber(),
+                user.getAvatarUrl(),
+                user.getDateOfBirth());
 
         ResLoginDTO.Role roleDTO = null;
         if (user.getRole() != null) {

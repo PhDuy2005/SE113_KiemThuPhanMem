@@ -22,6 +22,8 @@ public class ResProductDTO {
     private String brand;
     private UUID categoryId;
     private Integer stock;
+    private Double rating;
     private List<String> imageUrls;
+    private String primaryImage;
     private String message;
 }

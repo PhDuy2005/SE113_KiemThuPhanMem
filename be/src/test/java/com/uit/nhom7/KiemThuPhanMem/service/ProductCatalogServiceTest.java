@@ -18,6 +18,9 @@ import org.springframework.data.domain.Sort;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResProductDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
+import com.uit.nhom7.KiemThuPhanMem.repository.InventoryRepository;
+import com.uit.nhom7.KiemThuPhanMem.repository.ReviewRepository;
+import com.uit.nhom7.KiemThuPhanMem.repository.ProductImageRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
 import com.uit.nhom7.KiemThuPhanMem.util.error.BusinessException;
 
@@ -25,7 +28,10 @@ class ProductCatalogServiceTest {
     @Test
     void getProductByIdShouldReturnActiveProduct() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);
-        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository);
+        ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
+        InventoryRepository inventoryRepository = Mockito.mock(InventoryRepository.class);
+        ReviewRepository reviewRepository = Mockito.mock(ReviewRepository.class);
+        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository, productImageRepository, inventoryRepository, reviewRepository);
         UUID productId = UUID.randomUUID();
         Product product = Product.builder()
                 .id(productId)
@@ -46,7 +52,10 @@ class ProductCatalogServiceTest {
     @Test
     void getProductByIdShouldThrowNotFoundWhenProductDoesNotExist() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);
-        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository);
+        ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
+        InventoryRepository inventoryRepository = Mockito.mock(InventoryRepository.class);
+        ReviewRepository reviewRepository = Mockito.mock(ReviewRepository.class);
+        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository, productImageRepository, inventoryRepository, reviewRepository);
         UUID productId = UUID.randomUUID();
 
         when(productRepository.findByIdAndStatusIgnoreCase(productId, Product.ACTIVE_STATUS))
@@ -60,7 +69,10 @@ class ProductCatalogServiceTest {
     @Test
     void getProductsShouldFilterByCategoriesAndSortByPriceDesc() {
         ProductRepository productRepository = Mockito.mock(ProductRepository.class);
-        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository);
+        ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
+        InventoryRepository inventoryRepository = Mockito.mock(InventoryRepository.class);
+        ReviewRepository reviewRepository = Mockito.mock(ReviewRepository.class);
+        ProductCatalogService productCatalogService = new ProductCatalogService(productRepository, productImageRepository, inventoryRepository, reviewRepository);
         UUID categoryId = UUID.randomUUID();
         Product product = Product.builder()
                 .id(UUID.randomUUID())
@@ -92,7 +104,7 @@ class ProductCatalogServiceTest {
 
     @Test
     void getProductsShouldRejectInvalidPriceSort() {
-        ProductCatalogService productCatalogService = new ProductCatalogService(Mockito.mock(ProductRepository.class));
+        ProductCatalogService productCatalogService = new ProductCatalogService(Mockito.mock(ProductRepository.class), Mockito.mock(ProductImageRepository.class), Mockito.mock(InventoryRepository.class), Mockito.mock(ReviewRepository.class));
 
         assertThatThrownBy(() -> productCatalogService.getProducts(null, "CHEAP_FIRST"))
                 .isInstanceOf(BusinessException.class)

@@ -3,11 +3,13 @@ import { Address } from '../models/ui_types/address';
 
 export const addressService = {
   getAddresses: async (): Promise<Address[]> => {
-    return await api.get<Address[]>('/shipping-address');
+    // API missing in BE. Assumes it will be at GET /addresses
+    // Currently BE only has GET /orders/{orderId}/addresses
+    return await api.get<Address[]>('/addresses');
   },
 
   createAddress: async (address: Omit<Address, 'id'>): Promise<void> => {
-    await api.post('/shipping-address', {
+    await api.post('/addresses', {
       province: address.province,
       ward: address.ward,
       detail: address.detail,
@@ -15,7 +17,8 @@ export const addressService = {
   },
 
   updateAddress: async (id: string, updates: Partial<Address>): Promise<void> => {
-    await api.put(`/shipping-address/${id}`, {
+    // API missing in BE. There is no PUT /addresses/{id}
+    await api.put(`/addresses/${id}`, {
       province: updates.province,
       ward: updates.ward,
       detail: updates.detail,
@@ -23,10 +26,11 @@ export const addressService = {
   },
 
   deleteAddress: async (id: string): Promise<void> => {
-    await api.delete(`/shipping-address/${id}`);
+    // API missing in BE. There is no DELETE /addresses/{id}
+    await api.delete(`/addresses/${id}`);
   },
 
   setDefaultAddress: async (id: string): Promise<void> => {
-    await api.patch(`/shipping-address/${id}/default`);
+    await api.put(`/addresses/${id}/default`, {});
   },
 };

@@ -11,6 +11,7 @@ import lombok.Data;
 public class ResCategoryDTO {
     private UUID id;
     private String categoryName;
+    private UUID parentId;
     private String categoryImage;
     private String categoryDescription;
     private Instant createdAt;

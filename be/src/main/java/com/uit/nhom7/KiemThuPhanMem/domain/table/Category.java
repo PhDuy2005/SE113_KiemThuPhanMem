@@ -34,6 +34,9 @@ public class Category {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "parent_id", columnDefinition = "BINARY(16)")
+    private UUID parentId;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

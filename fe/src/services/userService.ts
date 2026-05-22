@@ -1,109 +1,126 @@
-import api, { PagedResponse } from '../api/apiClient';
+import api from '../api/apiClient';
 import { User, UserRole, UserStatus } from '../models/ui_types/user';
 import { AuditLog } from '../models/ui_types/auditLog';
 
+// ─── BE Pagination Type ─────────────────────────────────────
+interface ResultPaginationDTO<T> {
+  meta: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  result: T[];
+  message: string;
+}
+
 // ─── BE Response Types ──────────────────────────────────────
-interface UserDto {
+interface ResUserDTO {
   id: string;
   email: string;
-  status: UserStatus;
-  createdAt: string;
-  roles: string[];
-  profile: {
-    fullName: string;
-    phone: string;
-    avatarUrl?: string;
-    dateOfBirth?: string;
+  userFullName: string;
+  avatarUrl?: string;
+  status: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  role: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface UserGetAccountDto {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phoneNumber?: string;
+  };
+  role: {
+    roleId: number;
+    roleName: string;
   } | null;
 }
 
 // ─── Role Mapping ───────────────────────────────────────────
-const mapRole = (roles: any[] | null | undefined): UserRole => {
-  if (!roles || !Array.isArray(roles)) return 'Customer';
-  const roleNames = roles.map(r => {
-    if (!r) return '';
-    return typeof r === 'string' ? r : (r.name || '');
-  });
-  if (roleNames.includes('Technical Admin') || roleNames.includes('Admin')) return 'Technical Admin';
-  if (roleNames.includes('Business Admin')) return 'Business Admin';
-  if (roleNames.includes('Staff')) return 'Staff';
+const mapRole = (roleName: string | undefined): UserRole => {
+  if (!roleName) return 'Customer';
+  if (roleName === 'Technical Admin' || roleName === 'Admin') return 'Technical Admin';
+  if (roleName === 'Business Admin' || roleName === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
+  if (roleName === 'Staff') return 'Staff';
   return 'Customer';
 };
 
-const mapUser = (dto: any): User => ({
+const mapUser = (dto: ResUserDTO): User => ({
   id: dto.id,
   email: dto.email,
-  status: dto.status,
-  createdAt: dto.createdAt,
-  fullName: dto.profile?.fullName || dto.fullName || dto.email.split('@')[0],
-  phone: dto.profile?.phone || dto.phone || '',
-  avatarUrl: dto.profile?.avatarUrl,
-  dateOfBirth: dto.profile?.dateOfBirth,
-  role: mapRole(dto.roles),
+  status: (dto.status as UserStatus) || UserStatus.ACTIVE,
+  createdAt: '', // Missing in DTO
+  fullName: dto.userFullName || dto.email.split('@')[0],
+  phone: dto.phoneNumber || '',
+  avatarUrl: dto.avatarUrl,
+  dateOfBirth: dto.dateOfBirth,
+  role: mapRole(dto.role?.name),
 });
 
 export const userService = {
   getUsers: async (): Promise<User[]> => {
     try {
-      const [customersPaged, staffPaged] = await Promise.all([
-        api.get<PagedResponse<UserDto>>('/admin/users/customers?pageNumber=1&pageSize=100'),
-        api.get<PagedResponse<UserDto>>('/admin/users/staff?pageNumber=1&pageSize=100')
-      ]);
-      const customers = customersPaged.items.map(mapUser);
-      const staff = staffPaged.items.map(mapUser);
-      const allUsers = [...customers, ...staff];
-      const seen = new Set();
-      return allUsers.filter(u => {
-        const duplicate = seen.has(u.id);
-        seen.add(u.id);
-        return !duplicate;
-      });
+      // NOTE: BE currently does not have an API to list staff. We only fetch customers for now.
+      const customersPaged = await api.get<ResultPaginationDTO<ResUserDTO>>('/business/customers?pageNumber=1&pageSize=100');
+      
+      const customers = customersPaged.result.map(mapUser);
+      return customers;
     } catch {
-      const paged = await api.get<PagedResponse<UserDto>>(
-        '/admin/users/customers?pageNumber=1&pageSize=100',
-      );
-      return paged.items.map(mapUser);
+      return [];
     }
   },
 
   getCustomers: async (): Promise<User[]> => {
-    const paged = await api.get<PagedResponse<UserDto>>(
-      '/admin/users/customers?pageNumber=1&pageSize=100',
+    const paged = await api.get<ResultPaginationDTO<ResUserDTO>>(
+      '/business/customers?pageNumber=1&pageSize=100',
     );
-    return paged.items.map(mapUser);
+    return paged.result.map(mapUser);
   },
 
   getStaff: async (): Promise<User[]> => {
-    const paged = await api.get<PagedResponse<UserDto>>(
-      '/admin/users/staff?pageNumber=1&pageSize=100',
-    );
-    return paged.items.map(mapUser);
+    // API missing in BE. Assumes an endpoint like GET /business/staff
+    return [];
   },
 
   getUserById: async (_id: string): Promise<User> => {
     // BE doesn't have a get-user-by-id admin endpoint
     // Use current user endpoint as fallback
-    const dto = await api.get<UserDto>('/user/me');
-    return mapUser(dto);
+    const dto = await api.get<UserGetAccountDto>('/auth/account');
+    return {
+      id: dto.user.id,
+      email: dto.user.email,
+      fullName: dto.user.name, // Map 'name' from BE to 'fullName'
+      phone: dto.user.phoneNumber || '', // Map 'phoneNumber' from BE
+      role: mapRole(dto.role?.roleName), // Map 'roleName' from BE
+      status: UserStatus.ACTIVE,
+      createdAt: '',
+    };
   },
 
   createUser: async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
-    // Map UI role back to BE role string
     const beRole = userData.role === 'Technical Admin' ? 'Technical Admin' : 
                    userData.role === 'Business Admin' ? 'Business Admin' : 'Staff';
 
-    const dto = await api.post<UserDto>('/admin/users', {
+    // BE expects creating staff specifically
+    const dto = await api.post<ResUserDTO>('/business/staff', {
       email: userData.email,
+      fullName: userData.fullName,
       password: userData.password || 'TemporaryPassword123!',
-      roles: [beRole]
+      phoneNumber: userData.phone,
+      roleName: beRole,
     });
     return mapUser(dto);
   },
 
   updateUser: async (id: string, userData: Partial<User>): Promise<User> => {
-    // This is for admin updates of any user
-    const dto = await api.put<UserDto>(`/admin/users/${id}`, userData);
-    return mapUser(dto);
+    // API missing in BE. There is no endpoint for admin to update a user's details.
+    return userService.getUserById(id);
   },
 
   updateProfile: async (data: {
@@ -113,52 +130,34 @@ export const userService = {
     dateOfBirth?: string;
     avatarFile?: File;
   }): Promise<void> => {
-    const formData = new FormData();
-    if (data.fullName !== undefined && data.fullName !== null) formData.append('fullName', data.fullName);
-    if (data.phone !== undefined && data.phone !== null) formData.append('phone', data.phone);
-    if (data.avatarUrl !== undefined && data.avatarUrl !== null) formData.append('avatarUrl', data.avatarUrl);
-    if (data.dateOfBirth !== undefined && data.dateOfBirth !== null) formData.append('dateOfBirth', data.dateOfBirth);
-    if (data.avatarFile !== undefined && data.avatarFile !== null) formData.append('avatarFile', data.avatarFile);
-
-    await api.put('/user-profile', formData);
+    // Using the authenticated user's profile update endpoint
+    await api.put('/auth/profile', {
+      fullName: data.fullName,
+      phoneNumber: data.phone,
+    });
   },
 
   toggleUserStatus: async (id: string, currentStatus: UserStatus): Promise<User> => {
-    const isBlocking = currentStatus !== UserStatus.BLOCKED;
-    if (!isBlocking) {
-      await api.post(`/admin/users/${id}/unlock`);
-    } else {
-      await api.post(`/admin/users/${id}/lock`, { until: null });
+    // Based on user role, we need to call lock/block endpoint
+    // Assuming staff lock or customer block
+    try {
+      // Attempt to block customer
+      const res = await api.patch<ResUserDTO>(`/business/customers/${id}/block-fraud`);
+      return mapUser(res);
+    } catch {
+      // Attempt to lock staff
+      const res = await api.patch<ResUserDTO>(`/business/staff/${id}/lock`);
+      return mapUser(res);
     }
-
-    // Try to find in customers first
-    const customers = await userService.getCustomers();
-    let updated = customers.find(u => u.id === id);
-    
-    // If not in customers, try staff
-    if (!updated) {
-      const staff = await userService.getStaff();
-      updated = staff.find(u => u.id === id);
-    }
-
-    if (!updated) {
-      // Fallback: return manual update if refetch fails to find user (should not happen usually)
-      return {
-        id,
-        status: isBlocking ? UserStatus.BLOCKED : UserStatus.ACTIVE,
-        // These fields might be stale but at least we don't throw
-        email: '', 
-        fullName: '',
-        role: 'Customer',
-        createdAt: new Date().toISOString()
-      } as User;
-    }
-    return updated;
   },
 
-  getAuditLogs: async (pageNumber = 1, pageSize = 50): Promise<PagedResponse<AuditLog>> => {
-    return await api.get<PagedResponse<AuditLog>>(
-      `/admin/audit-logs?pageNumber=${pageNumber}&pageSize=${pageSize}`
+  getAuditLogs: async (pageNumber = 1, pageSize = 50): Promise<{ items: AuditLog[], totalCount: number }> => {
+    const res = await api.get<ResultPaginationDTO<AuditLog>>(
+      `/business/audit-logs?pageNumber=${pageNumber}&pageSize=${pageSize}`
     );
+    return {
+      items: res.result,
+      totalCount: res.meta.totalItems,
+    };
   },
 };

@@ -6,11 +6,10 @@ import { NotificationDropdown } from './NotificationDropdown';
 interface TopNavProps {
   userName: string;
   userRole: string;
-  userAvatar?: string;
   onLogout: () => void;
 }
 
-export function TopNav({ userName, userRole, userAvatar, onLogout }: TopNavProps) {
+export function TopNav({ userName, userRole, onLogout }: TopNavProps) {
   return (
     <div className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
       <div className="flex items-center gap-4 flex-1 max-w-xl">
@@ -30,13 +29,9 @@ export function TopNav({ userName, userRole, userAvatar, onLogout }: TopNavProps
             <div className="text-sm font-medium">{userName}</div>
             <div className="text-xs text-muted-foreground">{userRole}</div>
           </div>
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground overflow-hidden">
-            {userAvatar ? (
-              <img src={userAvatar} alt={userName} className="h-full w-full object-cover" />
-            ) : (
-              <User className="h-5 w-5" />
-            )}
-          </button>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground overflow-hidden">
+            <User className="h-5 w-5" />
+          </div>
         </div>
         <Button variant="outline" size="sm" onClick={onLogout}>
           Logout

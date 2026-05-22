@@ -16,5 +16,8 @@ import lombok.NoArgsConstructor;
 public class ResCheckoutSelectionDTO {
     private List<UUID> selectedProductIds;
     private BigDecimal tempTotalPrice;
+    private BigDecimal shippingFee;
+    private BigDecimal discountAmount;
+    private BigDecimal totalPrice;
     private String checkoutUrl;
 }

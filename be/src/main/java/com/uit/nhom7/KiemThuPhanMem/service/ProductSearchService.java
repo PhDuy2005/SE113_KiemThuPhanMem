@@ -10,7 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResProductDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
+import com.uit.nhom7.KiemThuPhanMem.domain.table.ProductImage;
+import com.uit.nhom7.KiemThuPhanMem.repository.ProductImageRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class ProductSearchService {
@@ -18,9 +23,11 @@ public class ProductSearchService {
     private static final int MAX_LIMIT = 50;
 
     private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
 
-    public ProductSearchService(ProductRepository productRepository) {
+    public ProductSearchService(ProductRepository productRepository, ProductImageRepository productImageRepository) {
         this.productRepository = productRepository;
+        this.productImageRepository = productImageRepository;
     }
 
     @Transactional(readOnly = true)
@@ -33,13 +40,28 @@ public class ProductSearchService {
         int resultLimit = normalizeLimit(limit);
         List<String> queryTokens = tokenize(normalizedKeyword);
 
-        return productRepository.findByStatusIgnoreCase(Product.ACTIVE_STATUS).stream()
+        List<Product> products = productRepository.findByStatusIgnoreCase(Product.ACTIVE_STATUS).stream()
                 .map(product -> new ScoredProduct(product, scoreProduct(product, normalizedKeyword, queryTokens)))
                 .filter(scoredProduct -> scoredProduct.score() > 0)
                 .sorted(Comparator.comparingInt(ScoredProduct::score).reversed()
                         .thenComparing(scoredProduct -> scoredProduct.product().getName()))
                 .limit(resultLimit)
-                .map(scoredProduct -> convertToDTO(scoredProduct.product()))
+                .map(ScoredProduct::product)
+                .toList();
+
+        List<UUID> productIds = products.stream().map(Product::getId).toList();
+        List<ProductImage> images = productIds.isEmpty() ? List.of() : productImageRepository.findByProductIdIn(productIds);
+        Map<UUID, String> primaryImageMap = new HashMap<>();
+        for (ProductImage img : images) {
+            if (img.isPrimaryImage()) {
+                primaryImageMap.put(img.getProduct().getId(), img.getImageUrl());
+            } else {
+                primaryImageMap.putIfAbsent(img.getProduct().getId(), img.getImageUrl());
+            }
+        }
+
+        return products.stream()
+                .map(product -> convertToDTO(product, primaryImageMap.get(product.getId())))
                 .toList();
     }
 
@@ -146,7 +168,7 @@ public class ProductSearchService {
         return Math.min(limit, MAX_LIMIT);
     }
 
-    private ResProductDTO convertToDTO(Product product) {
+    private ResProductDTO convertToDTO(Product product, String primaryImage) {
         return ResProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -155,6 +177,7 @@ public class ProductSearchService {
                 .status(product.getStatus())
                 .brand(product.getBrand())
                 .categoryId(product.getCategoryId())
+                .primaryImage(primaryImage)
                 .build();
     }
 

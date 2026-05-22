@@ -83,12 +83,18 @@ export function AddressBookPage() {
           onSuccess: () => {
             toast.success('Address updated');
             setShowModal(false);
+          },
+          onError: (err: any) => {
+            toast.error(err.message || 'Failed to update address');
           }
         })
       : () => createAddress(formData, {
           onSuccess: () => {
             toast.success('New address added');
             setShowModal(false);
+          },
+          onError: (err: any) => {
+            toast.error(err.message || 'Failed to add address');
           }
         });
 

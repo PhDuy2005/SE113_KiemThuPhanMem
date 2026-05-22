@@ -3,41 +3,42 @@ import { AuthUser, UserRole } from '../models/ui_types/user';
 
 // ─── Types matching BE DTOs ─────────────────────────────────
 interface LoginResponseDto {
-  token: string;
-  email: string;
-  roles: string[];
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phoneNumber?: string;
+  };
+  role: {
+    roleId: number;
+    roleName: string;
+  } | null;
 }
 
-interface UserMeResponseDto {
-  id: string;
-  email: string;
-  status: string;
-  createdAt: string;
-  roles: string[];
-  profile: {
-    fullName: string;
-    phone: string;
-    avatarUrl?: string;
-    dateOfBirth?: string;
+interface UserGetAccountDto {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    phoneNumber?: string;
+  };
+  role: {
+    roleId: number;
+    roleName: string;
   } | null;
 }
 
 // ─── Role Mapping ───────────────────────────────────────────
-// BE returns roles as ["Customer"], ["Staff"], ["Admin"], etc.
-// FE expects a single UserRole string.
-const mapRole = (roles: any[] | null | undefined): UserRole => {
-  if (!roles || !Array.isArray(roles)) return 'Customer';
-  const roleNames = roles.map(r => {
-    if (!r) return '';
-    return typeof r === 'string' ? r : (r.name || '');
-  });
-  if (roleNames.includes('Technical Admin') || roleNames.includes('Admin')) return 'Technical Admin';
-  if (roleNames.includes('Business Admin')) return 'Business Admin';
-  if (roleNames.includes('Staff')) return 'Staff';
+const mapRole = (roleName: string | undefined): UserRole => {
+  if (!roleName) return 'Customer';
+  if (roleName === 'Technical Admin' || roleName === 'Admin') return 'Technical Admin';
+  if (roleName === 'Business Admin' || roleName === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
+  if (roleName === 'Staff') return 'Staff';
   return 'Customer';
 };
 
-// ─── Public Interfaces (unchanged signatures) ───────────────
+// ─── Public Interfaces ──────────────────────────────────────
 export interface LoginParams {
   email: string;
   password?: string;
@@ -48,6 +49,7 @@ export interface RegisterParams {
   email: string;
   phone: string;
   password?: string;
+  confirmPassword?: string;
 }
 
 export const authService = {
@@ -58,18 +60,14 @@ export const authService = {
     });
 
     // Save JWT token for subsequent API calls
-    localStorage.setItem('token', data.token);
-
-    // Fetch full user profile to get id and name
-    const userMe = await api.get<UserMeResponseDto>('/user/me');
+    localStorage.setItem('token', data.access_token);
 
     return {
-      id: userMe.id,
-      name: userMe.profile?.fullName || userMe.email,
-      email: userMe.email,
-      role: mapRole(userMe.roles),
-      phone: userMe.profile?.phone,
-      avatarUrl: userMe.profile?.avatarUrl,
+      id: data.user.id,
+      name: data.user.name || data.user.email,
+      email: data.user.email,
+      phone: data.user.phoneNumber,
+      role: mapRole(data.role?.roleName),
     };
   },
 
@@ -77,11 +75,9 @@ export const authService = {
     await api.post('/auth/register', {
       email: params.email,
       password: params.password,
-      confirmPassword: params.password,
+      confirmPassword: params.confirmPassword || params.password,
     });
 
-    // After registration, auto-login is not guaranteed (email verification may be needed)
-    // Return a temporary user object; FE should redirect to verify-email page
     return {
       id: '',
       name: params.fullName,
@@ -100,8 +96,7 @@ export const authService = {
     token: string,
     email: string = '',
   ): Promise<void> => {
-    await api.put('/auth/reset-password', {
-      email,
+    await api.post('/auth/reset-password', {
       token,
       newPassword: password,
       confirmPassword,
@@ -109,7 +104,7 @@ export const authService = {
   },
 
   verifyEmail: async (token: string, email: string = ''): Promise<void> => {
-    await api.post('/auth/verify-email', { email, token });
+    await api.get(`/auth/verify?token=${encodeURIComponent(token)}`);
   },
 
   changePassword: async (
@@ -124,26 +119,20 @@ export const authService = {
     });
   },
 
-  /**
-   * Fetch current user from token (used by AuthContext on page load).
-   * Returns null if token is invalid/expired.
-   */
   getCurrentUser: async (): Promise<AuthUser | null> => {
     const token = localStorage.getItem('token');
     if (!token) return null;
 
     try {
-      const userMe = await api.get<UserMeResponseDto>('/user/me');
+      const data = await api.get<UserGetAccountDto>('/auth/account');
       return {
-        id: userMe.id,
-        name: userMe.profile?.fullName || userMe.email,
-        email: userMe.email,
-        role: mapRole(userMe.roles),
-        phone: userMe.profile?.phone,
-        avatarUrl: userMe.profile?.avatarUrl,
+        id: data.user.id,
+        name: data.user.name || data.user.email,
+        email: data.user.email,
+        phone: data.user.phoneNumber,
+        role: mapRole(data.role?.roleName),
       };
     } catch {
-      // Token expired or invalid — clean up
       localStorage.removeItem('token');
       return null;
     }

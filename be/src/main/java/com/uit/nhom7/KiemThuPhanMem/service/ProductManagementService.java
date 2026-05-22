@@ -247,6 +247,7 @@ public class ProductManagementService {
     }
 
     private ResProductDTO toProductDTO(Product product, Integer stock, List<String> imageUrls, String message) {
+        String primaryImage = (imageUrls != null && !imageUrls.isEmpty()) ? imageUrls.get(0) : null;
         return ResProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -257,6 +258,7 @@ public class ProductManagementService {
                 .categoryId(product.getCategoryId())
                 .stock(stock)
                 .imageUrls(imageUrls)
+                .primaryImage(primaryImage)
                 .message(message)
                 .build();
     }

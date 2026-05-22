@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: se113-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: '123456'
+      MYSQL_DATABASE: 'se113'
+    ports:
+      - "3306:3306"
+    volumes:
+      - se113_mysql_data:/var/lib/mysql
+
+  adminer:
+    image: adminer:latest
+    container_name: se113-adminer
+    restart: always
+    ports:
+      - "8085:8080" # Chạy trên cổng 8085 để không trùng với cổng 8080 của ứng dụng Spring Boot
+
+volumes:
+  se113_mysql_data:
+

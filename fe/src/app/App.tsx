@@ -28,13 +28,14 @@ import { ProductManagementPage } from './pages/business/ProductManagementPage';
 import { CategoryManagementPage } from './pages/business/CategoryManagementPage';
 import { ReportsPage } from './pages/business/ReportsPage';
 import { VoucherManagementPage } from './pages/business/VoucherManagementPage';
+import { SettingsPage } from './pages/business/SettingsPage';
 import { TechnicalDashboardPage } from './pages/technical/TechnicalDashboardPage';
 import { UserManagementPage } from './pages/technical/UserManagementPage';
 import { SystemLogsPage } from './pages/technical/SystemLogsPage';
 import { Button } from './components/ui/button';
 import { Toaster } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { SalesDashboardPage } from './pages/sales/salesdashboardpage';
+import { SalesDashboardPage } from './pages/sales/SalesDashboardPage';
 
 function AppContent() {
   const { user, isLoading, logout } = useAuth();
@@ -140,6 +141,7 @@ function AppContent() {
             <Route path="/business/staff" element={<StaffManagementPage />} />
             <Route path="/business/vouchers" element={<VoucherManagementPage />} />
             <Route path="/business/reports" element={<ReportsPage />} />
+            <Route path="/business/settings" element={<SettingsPage />} />
             <Route path="/business/orders/:id" element={<OrderManagementDetailPage readOnly={true} />} />
           </>
         )}

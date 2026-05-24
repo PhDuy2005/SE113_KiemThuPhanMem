@@ -12,14 +12,17 @@ import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqAddCartItemDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateCartItemDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCartItemActionDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Cart;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCartDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.CartItem;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.CartItemId;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Inventory;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
+import com.uit.nhom7.KiemThuPhanMem.domain.table.ProductImage;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
 import com.uit.nhom7.KiemThuPhanMem.repository.CartItemRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.CartRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.InventoryRepository;
+import com.uit.nhom7.KiemThuPhanMem.repository.ProductImageRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.UserRepository;
 import com.uit.nhom7.KiemThuPhanMem.util.SecurityUtil;
@@ -32,6 +35,7 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final InventoryRepository inventoryRepository;
+    private final ProductImageRepository productImageRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
@@ -39,11 +43,13 @@ public class CartService {
             CartRepository cartRepository,
             CartItemRepository cartItemRepository,
             InventoryRepository inventoryRepository,
+            ProductImageRepository productImageRepository,
             ProductRepository productRepository,
             UserRepository userRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.inventoryRepository = inventoryRepository;
+        this.productImageRepository = productImageRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
     }
@@ -173,5 +179,63 @@ public class CartService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "User account is not active");
         }
         return user;
+    }
+
+    @Transactional(readOnly = true)
+    public ResCartDTO getCart() {
+        User currentUser = getCurrentActiveUser();
+        Cart cart = cartRepository.findByUserId(currentUser.getId())
+                .orElseGet(() -> cartRepository.save(Cart.builder()
+                        .user(currentUser)
+                        .build()));
+
+        java.util.List<CartItem> dbItems = cartItemRepository.findByCartIdWithProduct(cart.getId());
+        BigDecimal totalPrice = calculateTotalCartPrice(cart.getId());
+        int totalItemsCount = cartItemRepository.getTotalItemsCount(cart.getId());
+
+        java.util.List<ResCartDTO.CartItemDto> items = dbItems.stream()
+                .map(item -> {
+                    Product product = item.getProduct();
+                    java.util.List<ProductImage> dbImages = productImageRepository.findByProductIdOrderByPrimaryImageDescCreatedAtAsc(product.getId());
+                    
+                    java.util.List<ResCartDTO.CartProductImageDto> images = dbImages.stream()
+                            .map(img -> ResCartDTO.CartProductImageDto.builder()
+                                    .id(img.getId())
+                                    .imageUrl(img.getImageUrl())
+                                    .isPrimary(img.isPrimaryImage())
+                                    .build())
+                            .toList();
+
+                    ResCartDTO.CartProductDto productDto = ResCartDTO.CartProductDto.builder()
+                            .id(product.getId())
+                            .name(product.getName())
+                            .brand(product.getBrand())
+                            .price(product.getPrice())
+                            .images(images)
+                            .build();
+
+                    return ResCartDTO.CartItemDto.builder()
+                            .productId(product.getId())
+                            .quantity(item.getQuantity())
+                            .createdAt(item.getCreatedAt())
+                            .updatedAt(item.getUpdatedAt())
+                            .product(productDto)
+                            .build();
+                })
+                .toList();
+
+        return ResCartDTO.builder()
+                .userId(currentUser.getId())
+                .items(items)
+                .totalPrice(totalPrice)
+                .totalItemsCount(totalItemsCount)
+                .build();
+    }
+
+    @Transactional
+    public void clearCart() {
+        User currentUser = getCurrentActiveUser();
+        Cart cart = getCurrentUserCart(currentUser);
+        cartItemRepository.deleteByCartId(cart.getId());
     }
 }

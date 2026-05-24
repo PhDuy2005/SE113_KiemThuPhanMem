@@ -77,7 +77,7 @@ export function ProfilePage() {
       
       toast.success('Profile updated successfully');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +117,7 @@ export function ProfilePage() {
                <Button 
                 variant="ghost" 
                 className="w-full justify-start text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted"
-                onClick={() => navigate('/customer/change-password')}
+                onClick={() => navigate('/change-password')}
                >
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Security

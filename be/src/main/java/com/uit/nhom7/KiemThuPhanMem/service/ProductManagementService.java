@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateProductGeneralDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResProductDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResultPaginationDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Inventory;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.ProductImage;
@@ -279,6 +281,90 @@ public class ProductManagementService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "Only business admin can perform this action");
         }
         return user;
+    }
+
+    private User getCurrentStaffOrBusinessAdmin() {
+        String email = SecurityUtil.getCurrentUserLogin()
+                .orElseThrow(() -> new BusinessException(HttpStatus.UNAUTHORIZED, "You must login first"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(HttpStatus.UNAUTHORIZED, "User session is invalid"));
+        if (user.getAccountStatus() == null
+                || !ACTIVE_ACCOUNT_STATUS.equals(user.getAccountStatus().trim().toUpperCase(Locale.ROOT))) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "User account is not active");
+        }
+        String roleName = user.getRole() == null || user.getRole().getName() == null
+                ? ""
+                : user.getRole().getName().trim().toUpperCase(Locale.ROOT);
+        if (!BUSINESS_ADMIN_ROLE.equals(roleName) && !"STAFF".equals(roleName)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Only staff or business admin can perform this action");
+        }
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO getAdminProducts(String keyword, UUID categoryId, String status, int pageNumber, int pageSize) {
+        getCurrentStaffOrBusinessAdmin();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(pageNumber - 1, 0),
+                pageSize <= 0 ? 20 : pageSize,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+
+        org.springframework.data.jpa.domain.Specification<Product> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (keyword != null && !keyword.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("name")), "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%"));
+            }
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("categoryId"), categoryId));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(cb.lower(root.get("status")), status.trim().toLowerCase(Locale.ROOT)));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        org.springframework.data.domain.Page<Product> page = productRepository.findAll(spec, pageable);
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotalPages(page.getTotalPages());
+        meta.setTotalItems(page.getTotalElements());
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        result.setMeta(meta);
+        result.setResult(page.getContent().stream()
+                .map(product -> toProductDTO(product, null))
+                .toList());
+        return result;
+    }
+
+    @Transactional
+    public ResProductDTO updateProduct(UUID productId, ReqUpdateProductGeneralDTO request) {
+        getCurrentBusinessAdmin();
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Product not found"));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            product.setName(request.getName().trim());
+        }
+        if (request.getDescription() != null) {
+            product.setDescription(cleanNullableText(request.getDescription()));
+        }
+        if (request.getCategoryId() != null) {
+            categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Category not found"));
+            product.setCategoryId(request.getCategoryId());
+        }
+        if (request.getBrand() != null) {
+            product.setBrand(cleanNullableText(request.getBrand()));
+        }
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            product.setStatus(request.getStatus().trim());
+        }
+
+        Product savedProduct = productRepository.save(product);
+        return toProductDTO(savedProduct, "Product details updated successfully");
     }
 
     private String cleanNullableText(String value) {

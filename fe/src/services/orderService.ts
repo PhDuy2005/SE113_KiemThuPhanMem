@@ -1,5 +1,6 @@
-import api from '../api/apiClient';
+import api, { PagedResponse } from '../api/apiClient';
 import { Order, OrderStatus } from '../models/ui_types/order';
+import { formatImageUrl } from '../utils/format';
 
 // ─── BE Pagination Type ─────────────────────────────────────
 interface ResultPaginationDTO<T> {
@@ -24,6 +25,7 @@ interface ResOrderDTO {
   discountAmount: number;
   totalAmount: number;
   paymentId: string;
+  paymentMethodName?: string;
   paymentStatus: string;
   trackingNumber?: string;
   orderingTime: string;
@@ -77,11 +79,16 @@ const mapOrder = (dto: ResOrderDTO): Order => ({
   totalAmount: dto.totalAmount,
   shippingAddressSnapshot: '',
   createdAt: dto.orderingTime,
-  // Note: paymentMethodName is missing from ResOrderDTO
-  paymentMethodName: undefined,
+  paymentMethodName: dto.paymentMethodName,
   isPaymentFailed: dto.paymentStatus === 'FAILED',
   checkoutUrl: undefined,
   customerName: dto.customerName,
+  payments: dto.paymentStatus ? [{
+    id: dto.paymentId || 'default',
+    paymentMethodName: dto.paymentMethodName || '',
+    status: dto.paymentStatus as any,
+    amount: dto.totalAmount
+  }] : [],
 });
 
 const mapOrderDetail = (dto: ResOrderDetailDTO): Order => ({
@@ -97,11 +104,17 @@ const mapOrderDetail = (dto: ResOrderDetailDTO): Order => ({
   paymentMethodName: dto.paymentMethod,
   isPaymentFailed: dto.paymentStatus === 'FAILED',
   customerName: dto.customerName,
+  payments: dto.paymentStatus ? [{
+    id: 'default',
+    paymentMethodName: dto.paymentMethod || '',
+    status: dto.paymentStatus as any,
+    amount: dto.totalAmount
+  }] : [],
   items: dto.items.map(i => ({
     orderId: dto.orderId,
     productId: i.productId,
     productName: i.productName,
-    imageUrl: i.productImageUrl,
+    imageUrl: formatImageUrl(i.productImageUrl),
     price: i.price,
     quantity: i.quantity,
   })),
@@ -122,11 +135,17 @@ export interface CheckoutSummary {
 
 export const orderService = {
   // ── Customer APIs ────────────────────────────────────────
-  getOrders: async (pageNumber = 1, pageSize = 10): Promise<Order[]> => {
+  getOrders: async (pageNumber = 1, pageSize = 10): Promise<PagedResponse<Order>> => {
     const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
       `/orders?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.result.map(mapOrder);
+    return {
+      items: paged.result.map(mapOrder),
+      pageNumber: paged.meta.page,
+      pageSize: paged.meta.pageSize,
+      totalCount: paged.meta.totalItems,
+      totalPages: paged.meta.totalPages,
+    };
   },
 
   getOrderById: async (id: string): Promise<Order> => {
@@ -149,6 +168,21 @@ export const orderService = {
       total: res.tempTotalPrice || 0, // Missing in API
       discount: 0, // Missing in API
     };
+  },
+
+  getShippingFee: async (provinceCode?: string, provinceName?: string): Promise<number> => {
+    if (!provinceCode && !provinceName) return 0;
+    try {
+      const params = new URLSearchParams();
+      if (provinceCode) params.append('provinceCode', provinceCode);
+      if (provinceName) params.append('provinceName', provinceName);
+      
+      const res = await api.get<number>(`/checkout/shipping-fee?${params.toString()}`);
+      return res;
+    } catch (e) {
+      console.error('Error fetching shipping fee:', e);
+      return 0;
+    }
   },
 
   createOrder: async (orderData: {
@@ -248,12 +282,37 @@ export const orderService = {
     await api.patch(`/orders/staff/${id}/refund`);
   },
 
-  getAdminOrders: async (pageNumber = 1, pageSize = 20): Promise<Order[]> => {
-    // Doesn't seem to exist an admin-specific endpoint anymore, fallback to search with empty keyword
+  getAdminOrders: async (status?: string, searchKeyword?: string, pageNumber = 1, pageSize = 10): Promise<PagedResponse<Order>> => {
+    if (searchKeyword && searchKeyword.trim()) {
+      const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
+        `/orders/staff/search?searchKeyword=${encodeURIComponent(searchKeyword.trim())}&pageNumber=${pageNumber}&pageSize=${pageSize}`,
+      );
+      return {
+        items: paged.result.map(mapOrder),
+        pageNumber: paged.meta.page,
+        pageSize: paged.meta.pageSize,
+        totalCount: paged.meta.totalItems,
+        totalPages: paged.meta.totalPages,
+      };
+    }
+
+    const params = new URLSearchParams();
+    if (status && status !== 'all') {
+      params.append('status', status);
+    }
+    params.append('pageNumber', String(pageNumber));
+    params.append('pageSize', String(pageSize));
+    
     const paged = await api.get<ResultPaginationDTO<ResOrderDTO>>(
-      `/orders/staff/search?searchKeyword=&pageNumber=${pageNumber}&pageSize=${pageSize}`,
+      `/orders/staff?${params.toString()}`,
     );
-    return paged.result.map(mapOrder);
+    return {
+      items: paged.result.map(mapOrder),
+      pageNumber: paged.meta.page,
+      pageSize: paged.meta.pageSize,
+      totalCount: paged.meta.totalItems,
+      totalPages: paged.meta.totalPages,
+    };
   },
 
   repay: async (id: string, paymentMethodId?: string): Promise<string | null> => {

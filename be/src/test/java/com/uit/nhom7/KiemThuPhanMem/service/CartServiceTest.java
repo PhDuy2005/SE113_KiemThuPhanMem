@@ -27,6 +27,7 @@ import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
 import com.uit.nhom7.KiemThuPhanMem.repository.CartItemRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.CartRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.InventoryRepository;
+import com.uit.nhom7.KiemThuPhanMem.repository.ProductImageRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.ProductRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.UserRepository;
 import com.uit.nhom7.KiemThuPhanMem.util.error.BusinessException;
@@ -264,12 +265,14 @@ class CartServiceTest {
         private final CartRepository cartRepository = Mockito.mock(CartRepository.class);
         private final CartItemRepository cartItemRepository = Mockito.mock(CartItemRepository.class);
         private final InventoryRepository inventoryRepository = Mockito.mock(InventoryRepository.class);
+        private final ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
         private final ProductRepository productRepository = Mockito.mock(ProductRepository.class);
         private final UserRepository userRepository = Mockito.mock(UserRepository.class);
         private final CartService cartService = new CartService(
                 cartRepository,
                 cartItemRepository,
                 inventoryRepository,
+                productImageRepository,
                 productRepository,
                 userRepository);
     }

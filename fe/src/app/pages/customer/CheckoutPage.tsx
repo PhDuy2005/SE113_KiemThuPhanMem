@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -22,18 +23,21 @@ import { useGetCart, useClearCart } from '../../../dataHook/cartDataHook';
 import { useGetProducts } from '../../../dataHook/productDataHook';
 import { useCreateOrder, useCheckoutSummary } from '../../../dataHook/orderDataHook';
 import { useGetPaymentMethods } from '../../../dataHook/paymentDataHook';
-import { useGetAddresses, useCreateAddress } from '../../../dataHook/addressDataHook';
+import { useGetAddresses, useCreateAddress, useGetProvinces, useGetWards } from '../../../dataHook/addressDataHook';
 import { useValidateVoucher } from '../../../dataHook/voucherDataHook';
 import { VoucherModal } from '../../components/customer/VoucherModal';
 import { Voucher, VoucherType } from '../../../models/ui_types/voucher';
 import { DynamicIcon } from '../../components/ui/dynamicIcon';
 import { toast } from 'sonner';
+import { orderService } from '../../../services/orderService';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const stateItems = location.state?.items || [];
   const fromCart = location.state?.fromCart ?? true; // fallback to true if undefined
+
+  const queryClient = useQueryClient();
 
   const { data: cartItems = [], isLoading: cartLoading } = useGetCart();
   const checkoutItems = stateItems.length > 0 ? stateItems : cartItems;
@@ -60,6 +64,10 @@ export function CheckoutPage() {
     ward: '',
     detail: ''
   });
+
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
+  const { data: provinces = [] } = useGetProvinces();
+  const { data: wards = [] } = useGetWards(selectedProvinceCode);
 
   useEffect(() => {
     if (availablePaymentMethods.length > 0 && !paymentMethodId) {
@@ -95,7 +103,37 @@ export function CheckoutPage() {
   const { data: summary } = useCheckoutSummary(checkoutSummaryParams);
 
   const subtotal = summary?.subtotal || 0;
-  const shippingFee = summary?.shippingFee || 0;
+  
+  const [liveShippingFee, setLiveShippingFee] = useState(0);
+
+  useEffect(() => {
+    const fetchFee = async () => {
+      let code = '';
+      let name = '';
+
+      if (!isAddingNewAddress) {
+        const addr = savedAddresses.find(a => a.id === selectedAddressId);
+        if (addr) {
+          code = addr.provinceCode ?? "";
+          name = addr.province;
+        }
+      } else {
+        code = selectedProvinceCode;
+        name = shippingAddress.province;
+      }
+
+      if (code || name) {
+        const fee = await orderService.getShippingFee(code, name);
+        setLiveShippingFee(fee);
+      } else {
+        setLiveShippingFee(0);
+      }
+    };
+
+    fetchFee();
+  }, [selectedAddressId, isAddingNewAddress, selectedProvinceCode, shippingAddress.province, savedAddresses]);
+
+  const shippingFee = liveShippingFee;
   
   // Recalculate discount based on applied voucher
   const calculateDiscount = () => {
@@ -177,8 +215,8 @@ export function CheckoutPage() {
         } else {
           throw new Error('Could not retrieve new address ID');
         }
-      } catch (error) {
-        toast.error('Failed to save or retrieve new shipping address');
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to save or retrieve new shipping address');
         return;
       }
     }
@@ -212,12 +250,9 @@ export function CheckoutPage() {
         };
 
         if (fromCart) {
-          clearCart(undefined, {
-            onSuccess: handleSuccess
-          });
-        } else {
-          handleSuccess();
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
         }
+        handleSuccess();
       },
       onError: (error: any) => {
         console.error('Order creation error:', error);
@@ -293,17 +328,25 @@ export function CheckoutPage() {
                         onClick={() => setSelectedAddressId(addr.id)}
                         className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all ${
                           selectedAddressId === addr.id 
-                            ? 'border-primary bg-muted/30' 
-                            : 'border-border/40 hover:border-border'
+                            ? (addr.isDefault ? 'border-amber-500 bg-amber-500/[0.06] ring-1 ring-amber-500' : 'border-primary bg-muted/30 ring-1 ring-primary') 
+                            : (addr.isDefault ? 'border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-500/60' : 'border-border/40 hover:border-border')
                         }`}
                       >
                         {selectedAddressId === addr.id && (
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary">
+                          <div className={`absolute right-4 top-1/2 -translate-y-1/2 ${addr.isDefault ? 'text-amber-500' : 'text-primary'}`}>
                             <CheckCircle2 className="h-5 w-5" />
                           </div>
                         )}
-                        <div className="space-y-1 pr-10">
-                          <p className="font-bold text-foreground text-sm uppercase tracking-tight">Shipping Location</p>
+                        <div className="space-y-1.5 pr-10">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground text-sm uppercase tracking-tight">Shipping Location</span>
+                            {addr.isDefault && (
+                              <span className="bg-amber-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-amber-500/20">
+                                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                                Default
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs leading-relaxed text-muted-foreground font-medium">
                             {addr.detail}, {addr.ward}, {addr.province}
                           </p>
@@ -317,23 +360,52 @@ export function CheckoutPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="province" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Province/City</Label>
-                      <Input 
-                        id="province" 
-                        placeholder="e.g. Ho Chi Minh" 
-                        value={shippingAddress.province} 
-                        onChange={handleInputChange} 
-                        className="h-11 rounded-xl border-border bg-background"
-                      />
+                      <select
+                        id="province"
+                        value={selectedProvinceCode}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          setSelectedProvinceCode(code);
+                          const prov = provinces.find(p => p.code === code);
+                          setShippingAddress(prev => ({
+                            ...prev,
+                            province: prov ? prov.name : '',
+                            ward: ''
+                          }));
+                        }}
+                        className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:border-primary focus:ring-0 outline-none transition-all"
+                      >
+                        <option value="">Select Province/City</option>
+                        {provinces.map((prov) => (
+                          <option key={prov.code} value={prov.code}>
+                            {prov.nameWithType}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="ward" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Ward</Label>
-                      <Input 
-                        id="ward" 
-                        placeholder="e.g. Ward 1" 
-                        value={shippingAddress.ward} 
-                        onChange={handleInputChange} 
-                        className="h-11 rounded-xl border-border bg-background"
-                      />
+                      <Label htmlFor="ward" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Ward/District</Label>
+                      <select
+                        id="ward"
+                        value={wards.find(w => w.name === shippingAddress.ward)?.code || ''}
+                        disabled={!selectedProvinceCode}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const w = wards.find(wardItem => wardItem.code === code);
+                          setShippingAddress(prev => ({
+                            ...prev,
+                            ward: w ? w.name : ''
+                          }));
+                        }}
+                        className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:border-primary focus:ring-0 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Select Ward/District</option>
+                        {wards.map((w) => (
+                          <option key={w.code} value={w.code}>
+                            {w.nameWithType}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="space-y-1.5">

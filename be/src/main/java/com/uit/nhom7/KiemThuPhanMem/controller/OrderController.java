@@ -43,13 +43,13 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrderHistory(userId, pageNumber, pageSize));
     }
 
-    @GetMapping("/staff/pending")
-    @ApiMessage("Staff xem danh sach don hang pending")
-    public ResponseEntity<ResultPaginationDTO> getPendingOrdersForStaff(
-            @RequestParam(value = "userId", required = false) UUID userId,
+    @GetMapping("/staff")
+    @ApiMessage("Staff xem danh sach don hang")
+    public ResponseEntity<ResultPaginationDTO> getOrdersForStaff(
+            @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
             @RequestParam(value = "pageSize", defaultValue = "20") int pageSize) {
-        return ResponseEntity.ok(orderService.getPendingOrdersForStaff(userId, pageNumber, pageSize));
+        return ResponseEntity.ok(orderService.getOrdersForStaff(status, pageNumber, pageSize));
     }
 
     @GetMapping("/staff/search")

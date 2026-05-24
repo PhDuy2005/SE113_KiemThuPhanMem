@@ -18,11 +18,12 @@ interface ResultPaginationDTO<T> {
 interface ResUserDTO {
   id: string;
   email: string;
-  userFullName: string;
+  name: string;
   avatarUrl?: string;
-  status: string;
+  accountStatus: string;
   phoneNumber?: string;
   dateOfBirth?: string;
+  created_at?: string;
   role: {
     id: string;
     name: string;
@@ -42,26 +43,37 @@ interface UserGetAccountDto {
   } | null;
 }
 
-// ─── Role Mapping ───────────────────────────────────────────
 const mapRole = (roleName: string | undefined): UserRole => {
   if (!roleName) return 'Customer';
-  if (roleName === 'Technical Admin' || roleName === 'Admin') return 'Technical Admin';
-  if (roleName === 'Business Admin' || roleName === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
-  if (roleName === 'Staff') return 'Staff';
+  const norm = roleName.trim().toUpperCase();
+  if (norm === 'TECHNICAL ADMIN' || norm === 'ADMIN' || norm === 'TECHNICAL_ADMIN') return 'Technical Admin';
+  if (norm === 'BUSINESS ADMIN' || norm === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
+  if (norm === 'STAFF') return 'Staff';
   return 'Customer';
 };
 
-const mapUser = (dto: ResUserDTO): User => ({
-  id: dto.id,
-  email: dto.email,
-  status: (dto.status as UserStatus) || UserStatus.ACTIVE,
-  createdAt: '', // Missing in DTO
-  fullName: dto.userFullName || dto.email.split('@')[0],
-  phone: dto.phoneNumber || '',
-  avatarUrl: dto.avatarUrl,
-  dateOfBirth: dto.dateOfBirth,
-  role: mapRole(dto.role?.name),
-});
+const mapUser = (dto: ResUserDTO): User => {
+  let mappedStatus = UserStatus.ACTIVE;
+  if (dto.accountStatus === 'LOCKED') {
+    mappedStatus = UserStatus.BLOCKED;
+  } else if (dto.accountStatus === 'PENDING') {
+    mappedStatus = UserStatus.PENDING;
+  } else if (dto.accountStatus === 'ACTIVE') {
+    mappedStatus = UserStatus.ACTIVE;
+  }
+
+  return {
+    id: dto.id,
+    email: dto.email,
+    status: mappedStatus,
+    createdAt: dto.created_at || '',
+    fullName: dto.name || dto.email.split('@')[0],
+    phone: dto.phoneNumber || '',
+    avatarUrl: dto.avatarUrl,
+    dateOfBirth: dto.dateOfBirth,
+    role: mapRole(dto.role?.name),
+  };
+};
 
 export const userService = {
   getUsers: async (): Promise<User[]> => {
@@ -76,16 +88,30 @@ export const userService = {
     }
   },
 
-  getCustomers: async (): Promise<User[]> => {
+  getCustomers: async (pageNumber = 1, pageSize = 10): Promise<{ items: User[], totalCount: number, totalPages: number, pageNumber: number, pageSize: number }> => {
     const paged = await api.get<ResultPaginationDTO<ResUserDTO>>(
-      '/business/customers?pageNumber=1&pageSize=100',
+      `/business/customers?pageNumber=${pageNumber}&pageSize=${pageSize}`,
     );
-    return paged.result.map(mapUser);
+    return {
+      items: paged.result.map(mapUser),
+      totalCount: paged.meta.totalItems,
+      totalPages: paged.meta.totalPages || 1,
+      pageNumber: paged.meta.page || 1,
+      pageSize: paged.meta.pageSize || 10,
+    };
   },
 
-  getStaff: async (): Promise<User[]> => {
-    // API missing in BE. Assumes an endpoint like GET /business/staff
-    return [];
+  getStaff: async (pageNumber = 1, pageSize = 10): Promise<{ items: User[], totalCount: number, totalPages: number, pageNumber: number, pageSize: number }> => {
+    const paged = await api.get<ResultPaginationDTO<ResUserDTO>>(
+      `/business/staff?pageNumber=${pageNumber}&pageSize=${pageSize}`,
+    );
+    return {
+      items: paged.result.map(mapUser),
+      totalCount: paged.meta.totalItems,
+      totalPages: paged.meta.totalPages || 1,
+      pageNumber: paged.meta.page || 1,
+      pageSize: paged.meta.pageSize || 10,
+    };
   },
 
   getUserById: async (_id: string): Promise<User> => {
@@ -104,23 +130,33 @@ export const userService = {
   },
 
   createUser: async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
-    const beRole = userData.role === 'Technical Admin' ? 'Technical Admin' : 
-                   userData.role === 'Business Admin' ? 'Business Admin' : 'Staff';
-
-    // BE expects creating staff specifically
+    // BE expects ReqCreateStaffDTO specifically: { email, fullName, roleId }
     const dto = await api.post<ResUserDTO>('/business/staff', {
       email: userData.email,
       fullName: userData.fullName,
-      password: userData.password || 'TemporaryPassword123!',
-      phoneNumber: userData.phone,
-      roleName: beRole,
+      roleId: 2, // 2 is the auto-incremented seed ID for the STAFF role
     });
     return mapUser(dto);
   },
 
   updateUser: async (id: string, userData: Partial<User>): Promise<User> => {
-    // API missing in BE. There is no endpoint for admin to update a user's details.
-    return userService.getUserById(id);
+    const beRole = userData.role === 'Technical Admin' ? 'TECHNICAL_ADMIN' : 
+                   userData.role === 'BUSINESS_ADMIN' ? 'BUSINESS_ADMIN' : 
+                   userData.role === 'Staff' ? 'STAFF' : 
+                   userData.role === 'Customer' ? 'CUSTOMER' : undefined;
+
+    const beRoleId = userData.role === 'Customer' ? 1 :
+                     userData.role === 'Staff' ? 2 :
+                     userData.role === 'BUSINESS_ADMIN' ? 3 : undefined;
+
+    const dto = await api.put<ResUserDTO>(`/business/users/${id}`, {
+      fullName: userData.fullName,
+      phoneNumber: userData.phone,
+      roleId: beRoleId,
+      roleName: beRole,
+      accountStatus: userData.status,
+    });
+    return mapUser(dto);
   },
 
   updateProfile: async (data: {
@@ -138,8 +174,12 @@ export const userService = {
   },
 
   toggleUserStatus: async (id: string, currentStatus: UserStatus): Promise<User> => {
-    // Based on user role, we need to call lock/block endpoint
-    // Assuming staff lock or customer block
+    if (currentStatus === UserStatus.BLOCKED) {
+      // Unblock the account using the general user update endpoint
+      const res = await api.put<ResUserDTO>(`/business/users/${id}`, { accountStatus: 'ACTIVE' });
+      return mapUser(res);
+    }
+
     try {
       // Attempt to block customer
       const res = await api.patch<ResUserDTO>(`/business/customers/${id}/block-fraud`);

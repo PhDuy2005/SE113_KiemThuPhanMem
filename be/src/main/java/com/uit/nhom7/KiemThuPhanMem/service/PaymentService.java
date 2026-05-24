@@ -35,6 +35,11 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<PaymentMethod> getPaymentMethods() {
+        return paymentMethodRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
     public ResOnlinePaymentDTO initializeOnlinePayment(ReqOnlinePaymentDTO request) {
         User currentUser = getCurrentActiveUser();
         if (isCustomer(currentUser)) {

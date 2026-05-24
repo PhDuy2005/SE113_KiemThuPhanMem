@@ -20,8 +20,10 @@ import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqForgotPasswordDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqRegisterDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqResetPasswordDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateProfileDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateUserDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResAuthActionDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResLoginDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResRoleDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResUserDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResultPaginationDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Role;
@@ -65,6 +67,16 @@ public class UserService {
             return null;
         }
 
+        ResRoleDTO roleDTO = null;
+        if (user.getRole() != null) {
+            roleDTO = ResRoleDTO.builder()
+                    .id(user.getRole().getId())
+                    .name(user.getRole().getName())
+                    .description(user.getRole().getDescription())
+                    .active(user.getRole().isActive())
+                    .build();
+        }
+
         return ResUserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -73,6 +85,7 @@ public class UserService {
                 .avatarUrl(user.getAvatarUrl())
                 .dateOfBirth(user.getDateOfBirth())
                 .accountStatus(user.getAccountStatus())
+                .role(roleDTO)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .createdBy(user.getCreatedBy())
@@ -362,6 +375,50 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IdInvalidException("User with id " + id + " does not exist"));
         userRepository.deleteById(id);
+    }
+
+    @Transactional
+    public ResUserDTO updateUser(UUID id, ReqUpdateUserDTO request) {
+        getCurrentActiveBusinessAdmin();
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (request.getFullName() != null) {
+            user.setUserFullName(request.getFullName().trim());
+        }
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber().trim());
+        }
+        if (request.getAccountStatus() != null) {
+            user.setAccountStatus(request.getAccountStatus().trim());
+        }
+        if (request.getRoleId() != null) {
+            Role role = roleRepository.findById(request.getRoleId())
+                    .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "Role not found"));
+            user.setRole(role);
+        } else if (request.getRoleName() != null && !request.getRoleName().isBlank()) {
+            String normalizedRoleName = request.getRoleName().trim().toUpperCase(Locale.ROOT);
+            Role role = roleRepository.findByName(normalizedRoleName);
+            if (role == null) {
+                role = roleRepository.findByName(request.getRoleName().trim());
+            }
+            if (role != null) {
+                user.setRole(role);
+            }
+        }
+
+        return convertToDTO(userRepository.save(user));
+    }
+
+    private User getCurrentActiveBusinessAdmin() {
+        User user = getCurrentActiveUser();
+        String roleName = user.getRole() == null || user.getRole().getName() == null
+                ? ""
+                : user.getRole().getName().trim().toUpperCase(Locale.ROOT);
+        if (!"BUSINESS_ADMIN".equals(roleName)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Only business admin can perform this action");
+        }
+        return user;
     }
 
     private User getCurrentActiveUser() {

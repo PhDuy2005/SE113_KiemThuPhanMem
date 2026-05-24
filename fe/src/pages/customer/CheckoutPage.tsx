@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -31,7 +32,15 @@ import { toast } from 'sonner';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const stateItems = location.state?.items || [];
+  const fromCart = location.state?.fromCart ?? true; // fallback to true if undefined
+
+  const queryClient = useQueryClient();
+
   const { data: cartItems = [], isLoading: cartLoading } = useGetCart();
+  const checkoutItems = stateItems.length > 0 ? stateItems : cartItems;
+
   const { data: products = [] } = useGetProducts();
   const { data: availablePaymentMethods = [] } = useGetPaymentMethods();
   const { data: savedAddresses = [] } = useGetAddresses();
@@ -65,14 +74,14 @@ export function CheckoutPage() {
     }
   }, [availablePaymentMethods, paymentMethodId, savedAddresses, selectedAddressId]);
 
-  const cartWithDetails = cartItems.map(item => {
+  const cartWithDetails = checkoutItems.map(item => {
     const product = products.find(p => p.id === item.productId);
     return { ...item, product };
   }).filter(item => item.product);
 
   const checkoutSummaryParams = useMemo(() => ({
-    items: cartItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
-  }), [cartItems]);
+    items: checkoutItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
+  }), [checkoutItems]);
 
   const { data: summary } = useCheckoutSummary(checkoutSummaryParams);
 
@@ -156,16 +165,19 @@ export function CheckoutPage() {
       voucherCode: voucherCode || undefined
     }, {
       onSuccess: (data: any) => {
-        clearCart(undefined, {
-          onSuccess: () => {
-            if (data.checkoutUrl) {
-              window.location.href = data.checkoutUrl;
-            } else {
-              toast.success('Order placed successfully!');
-              navigate('/customer/order-success', { state: { orderId: data.id } });
-            }
+        const handleSuccess = () => {
+          if (data.checkoutUrl) {
+            window.location.href = data.checkoutUrl;
+          } else {
+            toast.success('Order placed successfully!');
+            navigate('/customer/order-success', { state: { orderId: data.id } });
           }
-        });
+        };
+
+        if (fromCart) {
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
+        }
+        handleSuccess();
       },
       onError: () => toast.error('Failed to place order')
     });
@@ -238,17 +250,25 @@ export function CheckoutPage() {
                         onClick={() => setSelectedAddressId(addr.id)}
                         className={`relative cursor-pointer rounded-xl border-2 p-4 transition-all ${
                           selectedAddressId === addr.id 
-                            ? 'border-primary bg-muted/30' 
-                            : 'border-border/40 hover:border-border'
+                            ? (addr.isDefault ? 'border-amber-500 bg-amber-500/[0.06] ring-1 ring-amber-500' : 'border-primary bg-muted/30 ring-1 ring-primary') 
+                            : (addr.isDefault ? 'border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-500/60' : 'border-border/40 hover:border-border')
                         }`}
                       >
                         {selectedAddressId === addr.id && (
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary">
+                          <div className={`absolute right-4 top-1/2 -translate-y-1/2 ${addr.isDefault ? 'text-amber-500' : 'text-primary'}`}>
                             <CheckCircle2 className="h-5 w-5" />
                           </div>
                         )}
-                        <div className="space-y-1 pr-10">
-                          <p className="font-bold text-foreground text-sm uppercase tracking-tight">Shipping Location</p>
+                        <div className="space-y-1.5 pr-10">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground text-sm uppercase tracking-tight">Shipping Location</span>
+                            {addr.isDefault && (
+                              <span className="bg-amber-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-amber-500/20">
+                                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                                Default
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs leading-relaxed text-muted-foreground font-medium">
                             {addr.detail}, {addr.ward}, {addr.province}
                           </p>

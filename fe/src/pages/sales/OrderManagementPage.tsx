@@ -158,7 +158,6 @@ export function OrderManagementPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Order ID</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Customer</TableHead>
-                  <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground text-center">Items</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Status</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground text-right">Total</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground text-right">Quick Actions</TableHead>
@@ -173,9 +172,6 @@ export function OrderManagementPage() {
                         <span className="font-bold text-xs uppercase tracking-tight">{order.customerName}</span>
                         <span className="text-[9px] text-muted-foreground uppercase">{new Date(order.createdAt).toLocaleDateString()}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                       <span className="bg-muted px-2 py-1 rounded-md text-[10px] font-bold">{order.items?.length || 0}</span>
                     </TableCell>
                     <TableCell className="py-4">
                       <Badge variant={getStatusVariant(order.status)} className="text-[9px] font-black uppercase tracking-wider px-2.5 py-1">

@@ -2,6 +2,7 @@ package com.uit.nhom7.KiemThuPhanMem.controller;
 
 import java.util.UUID;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqAddCartItemDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateCartItemDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCartDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCartItemActionDTO;
 import com.uit.nhom7.KiemThuPhanMem.service.CartService;
 import com.uit.nhom7.KiemThuPhanMem.util.annotation.ApiMessage;
@@ -46,5 +48,18 @@ public class CartController {
     @ApiMessage("Xoa san pham khoi gio hang")
     public ResponseEntity<ResCartItemActionDTO> removeItem(@PathVariable UUID productId) {
         return ResponseEntity.ok(cartService.removeItem(productId));
+    }
+
+    @GetMapping
+    @ApiMessage("Lay thong tin gio hang hien tai")
+    public ResponseEntity<ResCartDTO> getCart() {
+        return ResponseEntity.ok(cartService.getCart());
+    }
+
+    @DeleteMapping
+    @ApiMessage("Xoa sach gio hang")
+    public ResponseEntity<Void> clearCart() {
+        cartService.clearCart();
+        return ResponseEntity.ok().build();
     }
 }

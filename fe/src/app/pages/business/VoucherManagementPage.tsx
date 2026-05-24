@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import {
   Table,
@@ -25,7 +25,9 @@ import {
   Calendar,
   Zap,
   TrendingDown,
-  Info
+  Info,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { 
   useGetVouchers, 
@@ -39,7 +41,53 @@ import { formatCurrency } from "../../../utils/format";
 
 export function VoucherManagementPage() {
   const [page, setPage] = useState(1);
-  const { data: voucherData, isLoading } = useGetVouchers(page);
+  const [pageSize, setPageSize] = useState(20);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSizeInput, setPageSizeInput] = useState('20');
+
+  const { data: voucherData, isLoading } = useGetVouchers(page, pageSize);
+  const totalPages = voucherData?.totalPages || 1;
+  const totalItems = voucherData?.totalCount || 0;
+
+  // Sync pageInput with page state
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  // Sync pageSizeInput with pageSize state
+  useEffect(() => {
+    setPageSizeInput(String(pageSize));
+  }, [pageSize]);
+
+  // Debounce page size input changes
+  useEffect(() => {
+    const num = Number(pageSizeInput);
+    if (isNaN(num) || num <= 0) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== pageSize) {
+        setPageSize(num);
+        setPage(1); // Reset to page 1
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageSizeInput, pageSize]);
+
+  // Debounce page input changes
+  useEffect(() => {
+    const num = Number(pageInput);
+    if (isNaN(num) || num <= 0 || num > totalPages) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== page) {
+        setPage(num);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageInput, page, totalPages]);
+
   const createMutation = useCreateVoucher();
   const deactivateMutation = useDeleteVoucher(); // Still use the same hook as it calls the soft-delete API
 
@@ -52,7 +100,7 @@ export function VoucherManagementPage() {
         setIsFormOpen(false);
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to create voucher");
+        toast.error(error.message || "Failed to create voucher");
       },
     });
   };
@@ -188,28 +236,83 @@ export function VoucherManagementPage() {
               </TableBody>
             </Table>
             
-            {/* Pagination */}
-            {voucherData.totalCount > voucherData.pageSize && (
-              <div className="flex items-center justify-end space-x-2 pt-4">
+            {/* Premium Pagination Section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/10">
+              {/* Left Side: Page Size Selector & Total Records */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                  Total: {totalItems} vouchers
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page Size:
+                  </span>
+                  <input
+                    type="number"
+                    value={pageSizeInput}
+                    min={1}
+                    max={100}
+                    onChange={(e) => setPageSizeInput(e.target.value)}
+                    className="w-16 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Right Side: Prev, Quick Jump Input, and Next */}
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
                   disabled={page === 1}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
                 >
-                  Previous
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
                 </Button>
-                <div className="text-sm font-medium">Page {page}</div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page
+                  </span>
+                  <input
+                    type="number"
+                    value={pageInput}
+                    min={1}
+                    max={totalPages}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                        setPage(val);
+                        setPageInput(String(val));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                      setPage(val);
+                      setPageInput(String(val));
+                    }}
+                    className="w-12 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    of {totalPages}
+                  </span>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page * voucherData.pageSize >= voucherData.totalCount}
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page >= totalPages}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
                 >
                   Next
+                  <ChevronRight className="h-3 w-3" />
                 </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       )}

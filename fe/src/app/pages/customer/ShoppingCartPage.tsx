@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -18,8 +18,44 @@ export function ShoppingCartPage() {
   const { mutate: clearCart } = useClearCart();
   const { mutate: createOrder } = useCreateOrder();
 
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [hasInitializedSelection, setHasInitializedSelection] = useState(false);
+
+  // Automatically select all items on initial load of the cart
+  useEffect(() => {
+    if (cartItems.length > 0 && !hasInitializedSelection) {
+      setSelectedProductIds(cartItems.map(item => item.productId));
+      setHasInitializedSelection(true);
+    }
+  }, [cartItems, hasInitializedSelection]);
+
+  // Handle selection toggling
+  const toggleItemSelection = (productId: string) => {
+    setSelectedProductIds(prev => 
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const isAllSelected = cartItems.length > 0 && selectedProductIds.length === cartItems.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(cartItems.map(item => item.productId));
+    }
+  };
+
+  const selectedItemsForSummary = useMemo(() => {
+    return cartItems
+      .filter(item => selectedProductIds.includes(item.productId))
+      .map(i => ({ productId: i.productId, quantity: i.quantity }));
+  }, [cartItems, selectedProductIds]);
+
   const { data: summary } = useCheckoutSummary({
-    items: cartItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
+    items: selectedItemsForSummary
   });
 
   const subtotal = summary?.subtotal || 0;
@@ -32,25 +68,38 @@ export function ShoppingCartPage() {
   }, [isError]);
 
   const handleCheckout = () => {
-    navigate('/customer/checkout', { state: { items: cartItems, fromCart: true } });
+    const selectedItems = cartItems.filter(item => selectedProductIds.includes(item.productId));
+    if (selectedItems.length === 0) {
+      toast.error('Please select at least one item to proceed');
+      return;
+    }
+    navigate('/customer/checkout', { state: { items: selectedItems, fromCart: true } });
   };
 
   const handleUpdateQuantity = (productId: string, quantity: number) => {
     updateQuantity({ productId, quantity }, {
-      onError: () => toast.error('Failed to update quantity')
+      onError: (err: any) => toast.error(err.message || 'Failed to update quantity')
     });
   };
 
   const handleRemoveItem = (productId: string) => {
     removeItem(productId, {
-      onSuccess: () => toast.success('Item removed'),
+      onSuccess: () => {
+        setSelectedProductIds(prev => prev.filter(id => id !== productId));
+        toast.success('Item removed');
+      },
       onError: () => toast.error('Failed to remove item')
     });
   };
 
   const handleConfirmCheckout = () => {
+    const selectedItems = cartItems.filter(item => selectedProductIds.includes(item.productId));
+    if (selectedItems.length === 0) {
+      toast.error('Please select at least one item to proceed');
+      return;
+    }
     createOrder({
-      items: cartItems,
+      items: selectedItems,
       total,
       subtotal
     }, {
@@ -96,9 +145,37 @@ export function ShoppingCartPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
+          {/* Select All Bar */}
+          <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="h-5 w-5 rounded border-border text-primary focus:ring-primary cursor-pointer transition-all"
+              />
+              <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground select-none">
+                Select All ({cartItems.length} items)
+              </span>
+            </label>
+            {selectedProductIds.length > 0 && (
+              <span className="text-xs font-bold bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-wider">
+                Selected {selectedProductIds.length}
+              </span>
+            )}
+          </div>
+
           {cartItems.map(item => (
-            <Card key={item.productId}>
-              <CardContent className="flex gap-4 p-6">
+            <Card key={item.productId} className={`transition-all duration-300 ${selectedProductIds.includes(item.productId) ? 'ring-1 ring-primary border-primary/50' : ''}`}>
+              <CardContent className="flex gap-4 p-6 items-center">
+                {/* Individual Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={selectedProductIds.includes(item.productId)}
+                  onChange={() => toggleItemSelection(item.productId)}
+                  className="h-5 w-5 rounded border-border text-primary focus:ring-primary cursor-pointer transition-all flex-shrink-0"
+                />
+
                 <img
                   src={item.imageUrl}
                   alt={item.productName}
@@ -164,7 +241,7 @@ export function ShoppingCartPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button onClick={handleCheckout} className="w-full">
+              <Button onClick={handleCheckout} className="w-full" disabled={selectedProductIds.length === 0}>
                 Proceed to Checkout
               </Button>
             </CardFooter>

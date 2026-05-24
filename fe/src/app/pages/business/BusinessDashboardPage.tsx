@@ -6,6 +6,7 @@ import { productService } from '../../../services/productService';
 import { DashboardStats, SalesData, CategoryData } from '../../../models/ui_types/dashboard';
 import { DollarSign, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { formatCurrency } from '../../../utils/format';
 
 export function BusinessDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -34,7 +35,7 @@ export function BusinessDashboardPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Revenue"
-          value={`$${totalRevenue.toLocaleString()}`}
+          value={formatCurrency(totalRevenue)}
           change="+18.2% from last month"
           changeType="positive"
           icon={DollarSign}
@@ -55,7 +56,7 @@ export function BusinessDashboardPage() {
         />
         <StatsCard
           title="Avg Order Value"
-          value={`$${avgOrderValue.toFixed(0)}`}
+          value={formatCurrency(avgOrderValue)}
           change="+5.1% from last month"
           changeType="positive"
           icon={TrendingUp}

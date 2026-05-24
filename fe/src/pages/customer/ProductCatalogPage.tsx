@@ -82,7 +82,7 @@ export function ProductCatalogPage() {
   const handleAddToCart = (productId: string) => {
     addToCart(productId, {
       onSuccess: () => toast.success('Added to cart'),
-      onError: () => toast.error('Failed to add to cart')
+      onError: (err: any) => toast.error(err.message || 'Failed to add to cart')
     });
   };
 

@@ -119,25 +119,25 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price ($)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    {...field} 
-                    onChange={(e) => field.onChange(Number(e.target.value))} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {!initialData && (
+        {!initialData && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price ($)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      onChange={(e) => field.onChange(Number(e.target.value))} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="stock"
@@ -155,8 +155,8 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
                 </FormItem>
               )}
             />
-          )}
-        </div>
+          </div>
+        )}
 
         <FormField
           control={form.control}

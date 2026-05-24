@@ -49,3 +49,20 @@ export const useSetDefaultAddress = () => {
     },
   });
 };
+
+export const useGetProvinces = () => {
+  return useQuery({
+    queryKey: ['provinces'],
+    queryFn: () => addressService.getProvinces(),
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour since province data is static
+  });
+};
+
+export const useGetWards = (provinceCode: string) => {
+  return useQuery({
+    queryKey: ['wards', provinceCode],
+    queryFn: () => addressService.getWards(provinceCode),
+    enabled: !!provinceCode,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
+  });
+};

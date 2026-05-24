@@ -22,13 +22,11 @@ const mapCategory = (dto: CategoryDto): Category => ({
 
 export const categoryService = {
   getCategories: async (): Promise<Category[]> => {
-    // Note: This is a business admin API. We use it for now as public API is missing.
-    // Customers will get 403 Forbidden. So we fallback to mock data if it fails.
     try {
-      const categories = await api.get<CategoryDto[]>('/business/categories');
+      const categories = await api.get<CategoryDto[]>('/categories');
       return categories.map(mapCategory);
     } catch (e) {
-      console.warn("Could not fetch categories (probably not an admin). Using mock data.");
+      console.warn("Could not fetch categories. Using mock data.");
       return [
         { id: '1', name: 'Smartphones' },
         { id: '2', name: 'Laptops' },

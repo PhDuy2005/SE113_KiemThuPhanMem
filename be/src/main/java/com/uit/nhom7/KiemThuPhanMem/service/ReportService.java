@@ -28,11 +28,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResBestSellingProductsReportDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCategoryDistributionDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResRevenueReportDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Order;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.OrderItem;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Payment;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
+import com.uit.nhom7.KiemThuPhanMem.repository.CategoryRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.OrderItemRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.OrderRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.PaymentRepository;
@@ -54,16 +56,19 @@ public class ReportService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
 
     public ReportService(
             OrderItemRepository orderItemRepository,
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            CategoryRepository categoryRepository) {
         this.orderItemRepository = orderItemRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -280,5 +285,53 @@ public class ReportService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "Only business admin can perform this action");
         }
         return user;
+    }
+
+    @Transactional(readOnly = true)
+    public ResCategoryDistributionDTO getCategoryDistributionReport(LocalDate startDate, LocalDate endDate) {
+        getCurrentBusinessAdmin();
+        if (startDate == null || endDate == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, MSG1);
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, MSG101);
+        }
+
+        ZoneId zoneId = ZoneId.systemDefault();
+        Instant start = startDate.atStartOfDay(zoneId).toInstant();
+        Instant end = endDate.atTime(LocalTime.MAX).atZone(zoneId).toInstant();
+        List<OrderItem> orderItems = orderItemRepository.findByOrderStatusAndOrderCreatedAtBetweenWithProduct(
+                Order.DELIVERED_STATUS, start, end);
+
+        Map<UUID, String> categoryNameMap = categoryRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        com.uit.nhom7.KiemThuPhanMem.domain.table.Category::getId,
+                        com.uit.nhom7.KiemThuPhanMem.domain.table.Category::getName,
+                        (existing, replacement) -> existing
+                ));
+
+        Map<String, Double> revenueByCategory = new HashMap<>();
+        for (OrderItem item : orderItems) {
+            UUID catId = item.getProduct().getCategoryId();
+            String catName = catId != null ? categoryNameMap.getOrDefault(catId, "Other") : "Other";
+            int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
+            BigDecimal price = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
+            double revenue = price.multiply(BigDecimal.valueOf(quantity)).doubleValue();
+            
+            revenueByCategory.put(catName, revenueByCategory.getOrDefault(catName, 0.0) + revenue);
+        }
+
+        List<ResCategoryDistributionDTO.CategoryPoint> distribution = revenueByCategory.entrySet().stream()
+                .map(entry -> ResCategoryDistributionDTO.CategoryPoint.builder()
+                        .name(entry.getKey())
+                        .value(entry.getValue())
+                        .build())
+                .sorted(Comparator.comparing(ResCategoryDistributionDTO.CategoryPoint::getName))
+                .toList();
+
+        return ResCategoryDistributionDTO.builder()
+                .distribution(distribution)
+                .message(distribution.isEmpty() ? "No category sales data for this period" : null)
+                .build();
     }
 }

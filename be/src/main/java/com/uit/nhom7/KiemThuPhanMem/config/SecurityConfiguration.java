@@ -116,6 +116,10 @@ public class SecurityConfiguration {
                 "/api/v1/address-data/provinces", // Danh sach tinh thanh cho dropdown
                 "/api/v1/address-data/provinces/*/wards", // Danh sach phuong xa cho dropdown
                 "/api/v1/products/search", // Tìm kiếm sản phẩm
+                "/api/v1/vouchers", // Danh sách voucher công khai
+                "/api/v1/categories", // Danh sách danh mục công khai
+                "/api/v1/payments/methods", // Danh sách phương thức thanh toán công khai
+                "/api/v1/checkout/shipping-fee", // Lấy phí vận chuyển công khai
 
                 // Actuator endpoints (monitoring)
                 "/actuator/**",

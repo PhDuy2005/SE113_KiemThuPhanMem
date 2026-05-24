@@ -25,7 +25,6 @@ import { Separator } from '../../components/ui/separator';
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [quantity, setQuantity] = useState(1);
   const { data: product, isLoading: isProductLoading, isError } = useGetProduct(id || '');
   const { data: reviewData, isLoading: isReviewsLoading } = useGetProductReviews(id || '');
   const reviews = reviewData?.reviews || [];
@@ -42,7 +41,7 @@ export function ProductDetailPage() {
     if (!product) return;
     addToCart(product.id, {
       onSuccess: () => toast.success('Added to cart'),
-      onError: () => toast.error('Failed to add to cart')
+      onError: (err: any) => toast.error(err.message || 'Failed to add to cart')
     });
   };
 
@@ -104,65 +103,21 @@ export function ProductDetailPage() {
           </p>
 
           <div className="space-y-6 pt-4 border-t border-border">
-            <div className="flex items-center gap-8">
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-0.5">Quantity</span>
-                <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={product.status === ProductStatus.DISCONTINUED}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-card shadow-sm border border-border transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="w-10 text-center font-bold text-base">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    disabled={product.status === ProductStatus.DISCONTINUED}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-card shadow-sm border border-border transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-              <div className="pt-5">
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
-                  Stock: <span className="text-foreground font-bold">{product.stock} units</span>
-                </span>
-              </div>
+            <div className="flex items-center gap-8 py-2">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Stock: <span className="text-foreground font-black">{product.stock} units</span>
+              </span>
             </div>
 
             <div className="flex gap-3">
               <Button 
                 size="lg" 
-                className="h-12 flex-[2] rounded-xl text-xs font-bold bg-primary text-primary-foreground uppercase tracking-widest hover:opacity-90 transition-all"
+                className="h-12 w-full rounded-xl text-xs font-bold bg-primary text-primary-foreground uppercase tracking-widest hover:opacity-90 transition-all"
                 onClick={handleAddToCart}
                 disabled={isAdding || product.stock === 0 || product.status === ProductStatus.DISCONTINUED}
               >
                 {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
                 {product.status === ProductStatus.DISCONTINUED ? 'Not Available' : 'Add to Cart'}
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="h-12 flex-1 rounded-xl text-xs font-bold border-border uppercase tracking-widest hover:bg-muted transition-all"
-                onClick={() => {
-                  navigate('/customer/checkout', {
-                    state: {
-                      items: [{
-                        productId: product.id,
-                        quantity,
-                        productName: product.name,
-                        price: product.price,
-                        imageUrl: product.imageUrl
-                      }],
-                      fromCart: false
-                    }
-                  });
-                }}
-                disabled={product.stock === 0 || product.status === ProductStatus.DISCONTINUED}
-              >
-                Buy Now
               </Button>
             </div>
           </div>

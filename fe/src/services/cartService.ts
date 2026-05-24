@@ -1,5 +1,6 @@
 import api from '../api/apiClient';
 import { CartItem } from '../models/ui_types/cart';
+import { formatImageUrl } from '../utils/format';
 
 // ─── BE Response Types ──────────────────────────────────────
 // Expected from the missing GET /cart API
@@ -36,8 +37,8 @@ const mapCartItems = (dto: CartResponseDto): CartItem[] => {
     updatedAt: item.updatedAt,
     productName: item.product?.name,
     price: item.product?.price,
-    imageUrl: item.product?.images?.find(img => img.isPrimary)?.imageUrl
-      || item.product?.images?.[0]?.imageUrl,
+    imageUrl: formatImageUrl(item.product?.images?.find(img => img.isPrimary)?.imageUrl
+      || item.product?.images?.[0]?.imageUrl),
   }));
 };
 

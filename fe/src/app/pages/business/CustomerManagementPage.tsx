@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import {
   Table,
@@ -42,7 +42,10 @@ import {
   Phone,
   Clock,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { 
   useGetCustomers, 
@@ -56,12 +59,65 @@ import { UserForm } from "../../components/business/UserForm";
 import { Separator } from "../../components/ui/separator";
 
 export function CustomerManagementPage() {
-  const { data: customers = [], isLoading } = useGetCustomers();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSizeInput, setPageSizeInput] = useState('10');
+
+  const { data, isLoading } = useGetCustomers(page, pageSize);
+  const customers = data?.items || [];
+  const totalPages = data?.totalPages || 1;
+  const totalItems = data?.totalCount || 0;
+
+  // Reset page to 1 when search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  // Sync pageInput with page state
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  // Sync pageSizeInput with pageSize state
+  useEffect(() => {
+    setPageSizeInput(String(pageSize));
+  }, [pageSize]);
+
+  // Debounce page size input changes
+  useEffect(() => {
+    const num = Number(pageSizeInput);
+    if (isNaN(num) || num <= 0) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== pageSize) {
+        setPageSize(num);
+        setPage(1); // Reset to page 1
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageSizeInput, pageSize]);
+
+  // Debounce page input changes
+  useEffect(() => {
+    const num = Number(pageInput);
+    if (isNaN(num) || num <= 0 || num > totalPages) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== page) {
+        setPage(num);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageInput, page, totalPages]);
+
   const updateMutation = useUpdateUser();
   const createMutation = useCreateUser();
   const toggleStatusMutation = useToggleUserStatus();
 
-  const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
@@ -148,10 +204,6 @@ export function CustomerManagementPage() {
           <h1 className="text-3xl font-bold tracking-tight">Customer Accounts</h1>
           <p className="text-muted-foreground">Manage customer profiles, security status and activity</p>
         </div>
-        <Button onClick={handleAdd}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Customer
-        </Button>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">
@@ -180,7 +232,7 @@ export function CustomerManagementPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium">
-              Customers ({filteredCustomers.length})
+              Customers ({totalItems})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -217,12 +269,19 @@ export function CustomerManagementPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={(e) => handleEdit(user, e)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          onClick={(e) => handleEdit(user, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(user);
+                          }}
+                          title="View Details"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Eye className="h-4 w-4 text-primary" />
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -244,6 +303,84 @@ export function CustomerManagementPage() {
                 ))}
               </TableBody>
             </Table>
+
+            {/* Premium Pagination Section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/10">
+              {/* Left Side: Page Size Selector & Total Records */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                  Total: {totalItems} customers
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page Size:
+                  </span>
+                  <input
+                    type="number"
+                    value={pageSizeInput}
+                    min={1}
+                    max={100}
+                    onChange={(e) => setPageSizeInput(e.target.value)}
+                    className="w-16 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Right Side: Prev, Quick Jump Input, and Next */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page
+                  </span>
+                  <input
+                    type="number"
+                    value={pageInput}
+                    min={1}
+                    max={totalPages}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                        setPage(val);
+                        setPageInput(String(val));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                      setPage(val);
+                      setPageInput(String(val));
+                    }}
+                    className="w-12 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    of {totalPages}
+                  </span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page >= totalPages}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -273,9 +410,9 @@ export function CustomerManagementPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-row gap-2">
+                 <div className="flex flex-row gap-2">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(selectedUser)}>
-                    <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                    <Edit className="mr-2 h-4 w-4" /> Edit Account
                   </Button>
                   <Button 
                     variant={selectedUser.status === UserStatus.BLOCKED ? "success" : "destructive"} 
@@ -336,7 +473,7 @@ export function CustomerManagementPage() {
             initialData={editingUser} 
             onSubmit={onFormSubmit}
             isLoading={updateMutation.isPending || createMutation.isPending}
-            forcedRole={selectedUser?.role} 
+            forcedRole="Customer" 
           />
         </DialogContent>
       </Dialog>

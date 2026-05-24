@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Star, MessageSquare, ShieldAlert, EyeOff, Eye, Loader2, Search, AlertTriangle } from 'lucide-react';
+import { Star, MessageSquare, ShieldAlert, EyeOff, Eye, Loader2, Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGetAllReviews, useModerateReview, useReplyToReview } from '../../../dataHook/reviewDataHook';
 import { ReviewStatus } from '../../../models/ui_types/review';
 import { toast } from 'sonner';
@@ -19,16 +19,81 @@ import {
 } from "../../components/ui/alert-dialog";
 
 export function ReviewManagementPage() {
-  const { data: reviews = [], isLoading } = useGetAllReviews();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSizeInput, setPageSizeInput] = useState('10');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data, isLoading } = useGetAllReviews(page, pageSize);
+  const reviews = data?.items || [];
+  const totalPages = data?.totalPages || 1;
+  const totalItems = data?.totalCount || 0;
+
+  // Reset page to 1 when search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  // Sync pageInput with page state
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  // Sync pageSizeInput with pageSize state
+  useEffect(() => {
+    setPageSizeInput(String(pageSize));
+  }, [pageSize]);
+
+  // Debounce page size input changes
+  useEffect(() => {
+    const num = Number(pageSizeInput);
+    if (isNaN(num) || num <= 0) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== pageSize) {
+        setPageSize(num);
+        setPage(1); // Reset to page 1
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageSizeInput, pageSize]);
+
+  // Debounce page input changes
+  useEffect(() => {
+    const num = Number(pageInput);
+    if (isNaN(num) || num <= 0 || num > totalPages) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== page) {
+        setPage(num);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageInput, page, totalPages]);
+
   const { mutate: moderateReview } = useModerateReview();
   const { mutate: replyToReview } = useReplyToReview();
   
-  const [searchTerm, setSearchTerm] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
   // Moderation Confirmation State
   const [confirmingMod, setConfirmingMod] = useState<{ id: string, status: ReviewStatus } | null>(null);
+  const [violationReason, setViolationReason] = useState<string>('SPAM');
+  const [violationDescription, setViolationDescription] = useState<string>('');
+
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  const handleOpenConfirmMod = (item: { id: string, status: ReviewStatus }) => {
+    setViolationReason('SPAM');
+    setViolationDescription('');
+    setConfirmingMod(item);
+  };
 
   const filteredReviews = reviews.filter(rev => 
     rev.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,14 +103,30 @@ export function ReviewManagementPage() {
 
   const handleModerate = () => {
     if (!confirmingMod) return;
+
+    if (confirmingMod.status === ReviewStatus.HIDDEN) {
+      if (!violationReason) {
+        toast.error('Violation reason is required');
+        return;
+      }
+      if (violationReason === 'OTHER' && !violationDescription.trim()) {
+        toast.error('Violation description is required when reason is OTHER');
+        return;
+      }
+    }
     
-    moderateReview({ id: confirmingMod.id, status: confirmingMod.status }, {
+    moderateReview({ 
+      id: confirmingMod.id, 
+      status: confirmingMod.status,
+      reason: confirmingMod.status === ReviewStatus.HIDDEN ? violationReason : undefined,
+      description: confirmingMod.status === ReviewStatus.HIDDEN ? violationDescription : undefined
+    }, {
       onSuccess: () => {
         toast.success(`Review protocol updated to ${confirmingMod.status}`);
         setConfirmingMod(null);
       },
-      onError: () => {
-        toast.error('Failed to update review status');
+      onError: (err: any) => {
+        toast.error(err.message || 'Failed to update review status');
         setConfirmingMod(null);
       }
     });
@@ -181,18 +262,16 @@ export function ReviewManagementPage() {
                           <MessageSquare className="h-3.5 w-3.5 mr-2" />
                           {(review.responses && review.responses.length > 0) || review.reply ? 'Reply Again' : 'Reply'}
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className={`h-8 px-4 rounded-lg text-[9px] font-bold uppercase tracking-widest ${review.status === ReviewStatus.VISIBLE ? 'text-muted-foreground' : 'text-primary'}`}
-                          onClick={() => setConfirmingMod({ id: review.id, status: review.status === ReviewStatus.VISIBLE ? ReviewStatus.HIDDEN : ReviewStatus.VISIBLE })}
-                        >
-                          {review.status === ReviewStatus.VISIBLE ? (
-                            <><EyeOff className="h-3.5 w-3.5 mr-2" /> Hide</>
-                          ) : (
-                            <><Eye className="h-3.5 w-3.5 mr-2" /> Show</>
-                          )}
-                        </Button>
+                        {review.status === ReviewStatus.VISIBLE && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-4 rounded-lg text-[9px] font-bold uppercase tracking-widest text-muted-foreground"
+                            onClick={() => handleOpenConfirmMod({ id: review.id, status: ReviewStatus.HIDDEN })}
+                          >
+                            <EyeOff className="h-3.5 w-3.5 mr-2" /> Hide
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" className="h-8 px-4 rounded-lg text-[9px] font-bold uppercase tracking-widest text-destructive hover:bg-destructive/10">
                           <ShieldAlert className="h-3.5 w-3.5 mr-2" />
                           Report
@@ -204,6 +283,88 @@ export function ReviewManagementPage() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Premium Pagination Section */}
+          <Card className="border-border shadow-sm rounded-2xl overflow-hidden bg-card mt-6">
+            <CardContent className="p-0">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/10">
+                {/* Left Side: Page Size Selector & Total Records */}
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Total: {totalItems} reviews
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                      Page Size:
+                    </span>
+                    <input
+                      type="number"
+                      value={pageSizeInput}
+                      min={1}
+                      max={100}
+                      onChange={(e) => setPageSizeInput(e.target.value)}
+                      className="w-16 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Side: Prev, Quick Jump Input, and Next */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                    className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                  >
+                    <ChevronLeft className="h-3 w-3" />
+                    Prev
+                  </Button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                      Page
+                    </span>
+                    <input
+                      type="number"
+                      value={pageInput}
+                      min={1}
+                      max={totalPages}
+                      onChange={(e) => setPageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                          setPage(val);
+                          setPageInput(String(val));
+                        }
+                      }}
+                      onBlur={() => {
+                        const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                        setPage(val);
+                        setPageInput(String(val));
+                      }}
+                      className="w-12 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    />
+                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                      of {totalPages}
+                    </span>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={page >= totalPages}
+                    className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                  >
+                    Next
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -216,23 +377,47 @@ export function ReviewManagementPage() {
                  <AlertTriangle className="h-5 w-5" />
                </div>
                <AlertDialogTitle className="text-sm font-bold uppercase tracking-tight">
-                 {confirmingMod?.status === ReviewStatus.HIDDEN ? 'Hide Feedback?' : 'Publish Feedback?'}
+                 Hide Feedback?
                </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-xs font-medium text-muted-foreground leading-relaxed italic">
-              {confirmingMod?.status === ReviewStatus.HIDDEN 
-                ? "Are you sure you want to hide this review from the public protocol? It will no longer be visible on the product detail page."
-                : "Confirm that this review is appropriate and should be made visible to all users."
-              }
+              Are you sure you want to hide this review from the public protocol? It will no longer be visible on the product detail page.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="space-y-4 my-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Violation Reason</label>
+              <select
+                value={violationReason}
+                onChange={(e) => setViolationReason(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="SPAM">SPAM (Advertisement, fake feedback)</option>
+                <option value="OFFENSIVE">OFFENSIVE (Abusive, inappropriate language)</option>
+                <option value="OTHER">OTHER (Custom reason)</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Violation Description {violationReason === 'OTHER' && <span className="text-destructive">*</span>}
+              </label>
+              <textarea
+                placeholder={violationReason === 'OTHER' ? "Describe the specific reason for hiding this feedback..." : "Optional details..."}
+                value={violationDescription}
+                onChange={(e) => setViolationDescription(e.target.value)}
+                disabled={violationReason !== 'OTHER'}
+                className={`w-full min-h-[80px] p-3 rounded-xl border border-border bg-card text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 ${violationReason !== 'OTHER' ? 'opacity-50 cursor-not-allowed bg-muted/30' : ''}`}
+              />
+            </div>
+          </div>
           <AlertDialogFooter className="mt-6">
             <AlertDialogCancel className="h-10 rounded-xl text-[10px] font-bold uppercase tracking-widest border-border">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleModerate}
               className="h-10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white bg-primary hover:bg-primary/90"
             >
-              Update Visibility
+              Hide Review
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

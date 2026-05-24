@@ -81,7 +81,6 @@ export function OrderHistoryPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4">Order ID</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4">Execution Date</TableHead>
-                  <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4">Items</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4">Protocol Status</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Valuation</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Action</TableHead>
@@ -90,23 +89,13 @@ export function OrderHistoryPage() {
               <TableBody>
                  {filteredOrders.length === 0 ? (
                    <TableRow>
-                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground uppercase text-[10px] font-bold tracking-widest">No matching records found in protocol</TableCell>
+                     <TableCell colSpan={5} className="h-32 text-center text-muted-foreground uppercase text-[10px] font-bold tracking-widest">No matching records found in protocol</TableCell>
                    </TableRow>
                  ) : (
                    filteredOrders.map(order => (
                     <TableRow key={order.id} className="border-border group">
                       <TableCell className="font-bold text-xs uppercase tracking-tight py-5">{order.id}</TableCell>
                       <TableCell className="text-xs font-medium text-muted-foreground py-5">{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell className="py-5">
-                        <div className="flex flex-col gap-0.5">
-                          {(order.items || []).slice(0, 2).map((item, idx) => (
-                            <div key={idx} className="text-[10px] font-bold uppercase tracking-tight line-clamp-1">{item.productName} <span className="text-muted-foreground opacity-60">x{item.quantity}</span></div>
-                          ))}
-                          {(order.items || []).length > 2 && (
-                            <div className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">+{(order.items || []).length - 2} Additional Units</div>
-                          )}
-                        </div>
-                      </TableCell>
                       <TableCell className="py-5">
                         <Badge variant={getStatusVariant(order.status)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1">
                           {order.status}

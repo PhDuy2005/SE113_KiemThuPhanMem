@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResBestSellingProductsReportDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResCategoryDistributionDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResRevenueReportDTO;
 import com.uit.nhom7.KiemThuPhanMem.service.ReportService;
 import com.uit.nhom7.KiemThuPhanMem.util.annotation.ApiMessage;
@@ -47,6 +48,16 @@ public class ReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(value = "limit", required = false) Integer limit) {
         return ResponseEntity.ok(reportService.getBestSellingProductsReport(startDate, endDate, limit));
+    }
+
+    @GetMapping("/category-distribution")
+    @ApiMessage("Business admin xem phan bo doanh thu theo danh muc")
+    public ResponseEntity<ResCategoryDistributionDTO> getCategoryDistributionReport(
+            @RequestParam(value = "startDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(reportService.getCategoryDistributionReport(startDate, endDate));
     }
 
     @GetMapping("/orders/export")

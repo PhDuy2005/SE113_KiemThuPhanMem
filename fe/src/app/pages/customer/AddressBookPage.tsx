@@ -17,7 +17,9 @@ import {
   useCreateAddress, 
   useUpdateAddress, 
   useDeleteAddress, 
-  useSetDefaultAddress 
+  useSetDefaultAddress,
+  useGetProvinces,
+  useGetWards 
 } from '../../../dataHook/addressDataHook';
 import { Address } from '../../../models/ui_types/address';
 
@@ -27,6 +29,10 @@ export function AddressBookPage() {
   const { mutate: updateAddress } = useUpdateAddress();
   const { mutate: deleteAddress } = useDeleteAddress();
   const { mutate: setDefaultAddress } = useSetDefaultAddress();
+ 
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
+  const { data: provinces = [] } = useGetProvinces();
+  const { data: wards = [] } = useGetWards(selectedProvinceCode);
 
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +54,12 @@ export function AddressBookPage() {
         detail: address.detail,
         isDefault: address.isDefault
       });
+      const matchedProvince = provinces.find(p => p.name === address.province);
+      if (matchedProvince) {
+        setSelectedProvinceCode(matchedProvince.code);
+      } else {
+        setSelectedProvinceCode('');
+      }
     } else {
       setEditingAddress(null);
       setFormData({
@@ -56,6 +68,7 @@ export function AddressBookPage() {
         detail: '',
         isDefault: false
       });
+      setSelectedProvinceCode('');
     }
     setShowModal(true);
   };
@@ -132,19 +145,20 @@ export function AddressBookPage() {
           </div>
         ) : (
           addresses.map((address) => (
-            <Card key={address.id} className={`border-2 transition-all rounded-2xl overflow-hidden ${address.isDefault ? 'border-primary bg-muted/30' : 'border-border/40 hover:border-border/80 bg-card'}`}>
+            <Card key={address.id} className={`border-2 transition-all rounded-2xl overflow-hidden ${address.isDefault ? 'border-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.07] shadow-sm shadow-amber-500/5' : 'border-border/40 hover:border-border/80 bg-card'}`}>
               <CardContent className="p-5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
-                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${address.isDefault ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground/50'}`}>
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center transition-all ${address.isDefault ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25' : 'bg-muted text-muted-foreground/50'}`}>
                       <MapPin className="h-5 w-5" />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-sm uppercase tracking-tight text-foreground">Shipping Location</span>
                         {address.isDefault && (
-                          <span className="bg-primary text-primary-foreground text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest border-none">
-                            DEFAULT
+                          <span className="bg-amber-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-amber-500/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                            Default Address
                           </span>
                         )}
                       </div>
@@ -157,9 +171,9 @@ export function AddressBookPage() {
                   <div className="flex items-center gap-2 self-end md:self-center">
                     {!address.isDefault && (
                       <Button 
-                        variant="ghost" 
+                        variant="outline" 
                         size="sm" 
-                        className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-muted"
+                        className="h-8 rounded-lg text-[10px] font-bold uppercase tracking-widest border-border text-muted-foreground hover:text-amber-600 hover:border-amber-500 hover:bg-amber-500/5 transition-all"
                         onClick={() => handleSetDefault(address.id)}
                       >
                         Set Default
@@ -195,25 +209,54 @@ export function AddressBookPage() {
           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-1.5">
                 <Label htmlFor="province" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Province/City</Label>
-                <Input 
-                  id="province" 
-                  placeholder="e.g. Ho Chi Minh" 
-                  required 
-                  className="h-11 rounded-xl border-border bg-background"
-                  value={formData.province}
-                  onChange={(e) => setFormData(prev => ({ ...prev, province: e.target.value }))}
-                />
+                <select
+                  id="province"
+                  required
+                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:border-primary focus:ring-0 outline-none transition-all"
+                  value={selectedProvinceCode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setSelectedProvinceCode(code);
+                    const prov = provinces.find(p => p.code === code);
+                    setFormData(prev => ({
+                      ...prev,
+                      province: prov ? prov.name : '',
+                      ward: ''
+                    }));
+                  }}
+                >
+                  <option value="">Select Province/City</option>
+                  {provinces.map((prov) => (
+                    <option key={prov.code} value={prov.code}>
+                      {prov.nameWithType}
+                    </option>
+                  ))}
+                </select>
              </div>
              <div className="space-y-1.5">
-                <Label htmlFor="ward" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Ward</Label>
-                <Input 
-                  id="ward" 
-                  placeholder="e.g. Ward 1" 
-                  required 
-                  className="h-11 rounded-xl border-border bg-background"
-                  value={formData.ward}
-                  onChange={(e) => setFormData(prev => ({ ...prev, ward: e.target.value }))}
-                />
+                <Label htmlFor="ward" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Ward/District</Label>
+                <select
+                  id="ward"
+                  required
+                  disabled={!selectedProvinceCode}
+                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:border-primary focus:ring-0 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={wards.find(w => w.name === formData.ward)?.code || ''}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    const w = wards.find(wardItem => wardItem.code === code);
+                    setFormData(prev => ({
+                      ...prev,
+                      ward: w ? w.name : ''
+                    }));
+                  }}
+                >
+                  <option value="">Select Ward/District</option>
+                  {wards.map((w) => (
+                    <option key={w.code} value={w.code}>
+                      {w.nameWithType}
+                    </option>
+                  ))}
+                </select>
              </div>
           </div>
 

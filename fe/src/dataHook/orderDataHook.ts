@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderService, CheckoutPreviewParams } from '../services/orderService';
 
-export const useGetOrders = () => {
+export const useGetOrders = (pageNumber = 1, pageSize = 10) => {
   return useQuery({
-    queryKey: ['orders'],
-    queryFn: () => orderService.getOrders(),
+    queryKey: ['orders', pageNumber, pageSize],
+    queryFn: () => orderService.getOrders(pageNumber, pageSize),
   });
 };
 
-export const useGetAdminOrders = () => {
+export const useGetAdminOrders = (status?: string, searchKeyword?: string, pageNumber = 1, pageSize = 10) => {
   return useQuery({
-    queryKey: ['admin-orders'],
-    queryFn: () => orderService.getAdminOrders(),
+    queryKey: ['admin-orders', status, searchKeyword, pageNumber, pageSize],
+    queryFn: () => orderService.getAdminOrders(status, searchKeyword, pageNumber, pageSize),
   });
 };
 

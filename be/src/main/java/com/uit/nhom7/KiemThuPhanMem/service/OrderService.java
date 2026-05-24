@@ -122,16 +122,27 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public ResultPaginationDTO getPendingOrdersForStaff(UUID userId, int pageNumber, int pageSize) {
+    public ResultPaginationDTO getOrdersForStaff(String status, int pageNumber, int pageSize) {
         getCurrentStaffOrBusinessAdmin();
+
+        if (status != null && !status.trim().isBlank()) {
+            String cleanStatus = status.trim().toUpperCase(Locale.ROOT);
+            if (!Order.PENDING_STATUS.equals(cleanStatus)
+                    && !Order.APPROVED_STATUS.equals(cleanStatus)
+                    && !Order.SHIPPING_STATUS.equals(cleanStatus)
+                    && !Order.DELIVERED_STATUS.equals(cleanStatus)
+                    && !Order.CANCELLED_STATUS.equals(cleanStatus)) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "Invalid order status filter: " + status);
+            }
+        }
 
         Pageable pageable = PageRequest.of(
                 Math.max(pageNumber - 1, 0),
                 pageSize <= 0 ? 20 : pageSize,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Order> orders = userId == null
-                ? orderRepository.findByStatusIgnoreCase(Order.PENDING_STATUS, pageable)
-                : orderRepository.findByStatusIgnoreCaseAndUserId(Order.PENDING_STATUS, userId, pageable);
+        Page<Order> orders = (status == null || status.trim().isBlank())
+                ? orderRepository.findAll(pageable)
+                : orderRepository.findByStatusIgnoreCase(status.trim(), pageable);
 
         ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
         meta.setPage(pageable.getPageNumber() + 1);

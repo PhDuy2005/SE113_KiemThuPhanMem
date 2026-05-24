@@ -13,4 +13,9 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     Optional<Voucher> findByCodeIgnoreCase(String code);
 
     boolean existsByCodeIgnoreCase(String code);
+
+    java.util.List<Voucher> findByActiveTrueAndStatusIgnoreCase(String status);
+
+    org.springframework.data.domain.Page<Voucher> findByActiveTrueAndStatusIgnoreCaseAndEndDateAfter(
+            String status, java.time.Instant now, org.springframework.data.domain.Pageable pageable);
 }

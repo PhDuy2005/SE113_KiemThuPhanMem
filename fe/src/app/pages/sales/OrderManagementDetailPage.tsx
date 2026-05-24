@@ -61,6 +61,28 @@ export function OrderManagementDetailPage({ readOnly = false }: OrderManagementD
     });
   };
 
+  const getPaymentStatusInfo = (payments?: any[]) => {
+    if (!payments || payments.length === 0) {
+      return { label: 'PENDING', color: 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' };
+    }
+    
+    const hasSuccess = payments.some(p => p.status === 'SUCCESS');
+    if (hasSuccess) {
+      return { label: 'PAID', color: 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' };
+    }
+
+    const sorted = [...payments].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    const latest = sorted[0];
+
+    if (latest.status === 'FAILED') {
+      return { label: 'PAYMENT FAILED', color: 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20' };
+    }
+    if (latest.status === 'CANCELLED') {
+      return { label: 'CANCELLED', color: 'bg-neutral-500/10 text-neutral-500 hover:bg-neutral-500/20' };
+    }
+    return { label: 'PENDING', color: 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' };
+  };
+
   const getStatusStep = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.PENDING: return 1;
@@ -336,6 +358,12 @@ export function OrderManagementDetailPage({ readOnly = false }: OrderManagementD
                   <CreditCard className="h-3 w-3 text-muted-foreground" />
                   <p className="text-xs font-bold uppercase tracking-tight">{order.paymentMethodName || 'E-Protocol'}</p>
                 </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">Payment Status</p>
+                <Badge className={`uppercase font-bold text-[8px] tracking-widest px-2 py-0.5 rounded-md w-fit transition-all ${getPaymentStatusInfo(order.payments).color}`}>
+                  {getPaymentStatusInfo(order.payments).label}
+                </Badge>
               </div>
             </CardContent>
           </Card>

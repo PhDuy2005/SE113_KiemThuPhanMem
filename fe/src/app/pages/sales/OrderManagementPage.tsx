@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
@@ -11,7 +11,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "../../components/ui/select";
-import { Search, Eye, Loader2, CheckCircle2, XCircle, Truck, Package, AlertTriangle } from 'lucide-react';
+import { Search, Eye, Loader2, CheckCircle2, XCircle, Truck, Package, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGetAdminOrders, useUpdateOrderStatus } from '../../../dataHook/orderDataHook';
 import { OrderStatus } from '../../../models/ui_types/order';
 import { useNavigate } from 'react-router';
@@ -29,20 +29,78 @@ import {
 
 export function OrderManagementPage() {
   const navigate = useNavigate();
-  const { data: orders = [], isLoading } = useGetAdminOrders();
-  const { mutate: updateStatus } = useUpdateOrderStatus();
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSizeInput, setPageSizeInput] = useState('10');
+
+  const { data, isLoading } = useGetAdminOrders(statusFilter, debouncedSearch, page, pageSize);
+  const orders = data?.items || [];
+  const totalPages = data?.totalPages || 1;
+  const totalItems = data?.totalCount || 0;
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, debouncedSearch]);
+
+  // Sync pageInput with page state
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  // Sync pageSizeInput with pageSize state
+  useEffect(() => {
+    setPageSizeInput(String(pageSize));
+  }, [pageSize]);
+
+  // Debounce page size input changes
+  useEffect(() => {
+    const num = Number(pageSizeInput);
+    if (isNaN(num) || num <= 0) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== pageSize) {
+        setPageSize(num);
+        setPage(1); // Reset to page 1
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageSizeInput, pageSize]);
+
+  // Debounce page input changes
+  useEffect(() => {
+    const num = Number(pageInput);
+    if (isNaN(num) || num <= 0 || num > totalPages) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== page) {
+        setPage(num);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageInput, page, totalPages]);
+
+  const { mutate: updateStatus } = useUpdateOrderStatus();
 
   // Confirmation State
   const [confirming, setConfirming] = useState<{ id: string, status: OrderStatus } | null>(null);
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
 
   const getStatusVariant = (status: string) => {
     switch (status.toUpperCase()) {
@@ -150,7 +208,7 @@ export function OrderManagementPage() {
       ) : (
         <Card className="border-border shadow-sm rounded-2xl overflow-hidden bg-card">
           <CardHeader className="border-b border-border bg-muted/20">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest">Active Orders ({filteredOrders.length})</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest">Active Orders ({totalItems})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -158,7 +216,6 @@ export function OrderManagementPage() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Order ID</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Customer</TableHead>
-                  <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground text-center">Items</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Status</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Payment</TableHead>
                   <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground text-right">Total</TableHead>
@@ -166,7 +223,7 @@ export function OrderManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map(order => (
+                {orders.map(order => (
                   <TableRow 
                     key={order.id} 
                     className="border-border group cursor-pointer hover:bg-muted/50 transition-colors"
@@ -179,9 +236,6 @@ export function OrderManagementPage() {
                         <span className="text-[9px] text-muted-foreground uppercase">{new Date(order.createdAt).toLocaleDateString()}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center py-4">
-                       <span className="bg-muted px-2 py-1 rounded-md text-[10px] font-bold">{order.items?.length || 0}</span>
-                    </TableCell>
                     <TableCell className="py-4">
                       <Badge variant={getStatusVariant(order.status)} className="text-[9px] font-black uppercase tracking-wider px-2.5 py-1">
                         {order.status}
@@ -190,9 +244,13 @@ export function OrderManagementPage() {
                     <TableCell className="py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-[10px] uppercase">{order.paymentMethodName || 'N/A'}</span>
-                        {order.isPaymentFailed !== null && order.isPaymentFailed !== undefined && (
-                          <span className={`text-[9px] font-bold uppercase ${order.isPaymentFailed ? 'text-red-500' : 'text-green-500'}`}>
-                            {order.isPaymentFailed ? 'FAILED' : 'PAID'}
+                        {order.payments?.[0]?.status && (
+                          <span className={`text-[9px] font-bold uppercase ${
+                            order.payments[0].status === 'SUCCESS' ? 'text-green-500' :
+                            order.payments[0].status === 'PENDING' ? 'text-amber-500' :
+                            'text-red-500'
+                          }`}>
+                            {order.payments[0].status === 'SUCCESS' ? 'PAID' : order.payments[0].status}
                           </span>
                         )}
                       </div>
@@ -250,6 +308,84 @@ export function OrderManagementPage() {
                 ))}
               </TableBody>
             </Table>
+
+            {/* Premium Pagination Section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/10">
+              {/* Left Side: Page Size Selector & Total Records */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                  Total: {totalItems} orders
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page Size:
+                  </span>
+                  <input
+                    type="number"
+                    value={pageSizeInput}
+                    min={1}
+                    max={100}
+                    onChange={(e) => setPageSizeInput(e.target.value)}
+                    className="w-16 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Right Side: Prev, Quick Jump Input, and Next */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page
+                  </span>
+                  <input
+                    type="number"
+                    value={pageInput}
+                    min={1}
+                    max={totalPages}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                        setPage(val);
+                        setPageInput(String(val));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                      setPage(val);
+                      setPageInput(String(val));
+                    }}
+                    className="w-12 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    of {totalPages}
+                  </span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page >= totalPages}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

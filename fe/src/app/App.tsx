@@ -98,6 +98,10 @@ function AppContent() {
         {/* Redirect auth pages to home if already logged in */}
         <Route path="/auth/*" element={<Navigate to="/" replace />} />
 
+        {/* Shared Global Authenticated Routes */}
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
+
         {/* Customer Routes */}
         {user.role === 'Customer' && (
           <>
@@ -109,8 +113,6 @@ function AppContent() {
             <Route path="/customer/order-success" element={<OrderSuccessPage />} />
             <Route path="/customer/orders" element={<OrderHistoryPage />} />
             <Route path="/customer/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/customer/profile" element={<ProfilePage />} />
-            <Route path="/customer/change-password" element={<ChangePasswordPage />} />
             <Route path="/customer/addresses" element={<AddressBookPage />} />
           </>
         )}
@@ -139,7 +141,6 @@ function AppContent() {
             <Route path="/business/vouchers" element={<VoucherManagementPage />} />
             <Route path="/business/reports" element={<ReportsPage />} />
             <Route path="/business/orders/:id" element={<OrderManagementDetailPage readOnly={true} />} />
-            <Route path="/business/profile" element={<ProfilePage />} />
           </>
         )}
 

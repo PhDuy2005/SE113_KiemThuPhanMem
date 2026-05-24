@@ -10,10 +10,10 @@ export const useGetProductReviews = (productId: string) => {
   });
 };
 
-export const useGetAllReviews = () => {
+export const useGetAllReviews = (pageNumber = 1, pageSize = 20) => {
   return useQuery({
-    queryKey: ['reviews', 'all'],
-    queryFn: () => reviewService.getAllReviews(),
+    queryKey: ['reviews', 'all', pageNumber, pageSize],
+    queryFn: () => reviewService.getAllReviews(pageNumber, pageSize),
   });
 };
 
@@ -33,8 +33,8 @@ export const useSubmitReview = () => {
 export const useModerateReview = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string, status: ReviewStatus }) => 
-      reviewService.moderateReview(id, status),
+    mutationFn: ({ id, status, reason, description }: { id: string, status: ReviewStatus, reason?: string, description?: string }) => 
+      reviewService.moderateReview(id, status, reason, description),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },

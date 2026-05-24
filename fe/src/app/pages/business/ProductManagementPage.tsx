@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import {
   Table,
@@ -25,13 +25,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { Search, Edit, Ban, Plus, Loader2, PackageSearch, Eye, RefreshCcw, PackagePlus } from "lucide-react";
+import { Search, Edit, Ban, Plus, Loader2, PackageSearch, Eye, RefreshCcw, PackagePlus, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { 
   useGetAdminProducts, 
   useCreateProduct, 
   useUpdateProduct,
   useToggleProductStatus 
 } from "../../../dataHook/productDataHook";
+import { useGetCategories } from "../../../dataHook/categoryDataHook";
 import { useNavigate } from "react-router";
 import { Product, ProductStatus } from "../../../models/ui_types/product";
 import { ProductForm } from "../../components/business/ProductForm";
@@ -46,38 +47,93 @@ interface ProductManagementPageProps {
 
 export function ProductManagementPage({ readOnly = false }: ProductManagementPageProps) {
   const navigate = useNavigate();
-  const { data: adminData, isLoading } = useGetAdminProducts({ pageSize: 100 });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pageInput, setPageInput] = useState('1');
+  const [pageSizeInput, setPageSizeInput] = useState('10');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { data: adminData, isLoading } = useGetAdminProducts({ 
+    pageNumber: page,
+    pageSize: pageSize,
+    keyword: debouncedSearch || undefined,
+    categoryId: categoryFilter === "all" ? undefined : categoryFilter,
+    status: statusFilter === "all" ? undefined : statusFilter as any,
+  });
   const products = adminData?.items || [];
+  const totalPages = adminData?.totalPages || 1;
+  const totalItems = adminData?.totalCount || 0;
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, categoryFilter, statusFilter]);
+
+  // Sync pageInput with page state
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  // Sync pageSizeInput with pageSize state
+  useEffect(() => {
+    setPageSizeInput(String(pageSize));
+  }, [pageSize]);
+
+  // Debounce page size input changes
+  useEffect(() => {
+    const num = Number(pageSizeInput);
+    if (isNaN(num) || num <= 0) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== pageSize) {
+        setPageSize(num);
+        setPage(1); // Reset to page 1
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageSizeInput, pageSize]);
+
+  // Debounce page input changes
+  useEffect(() => {
+    const num = Number(pageInput);
+    if (isNaN(num) || num <= 0 || num > totalPages) return;
+    
+    const handler = setTimeout(() => {
+      if (num !== page) {
+        setPage(num);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(handler);
+  }, [pageInput, page, totalPages]);
+
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
   const toggleStatusMutation = useToggleProductStatus();
   const updateInventoryMutation = useUpdateInventory();
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   
   // Dialog states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | undefined>(undefined);
+  const [isPriceOpen, setIsPriceOpen] = useState(false);
+  const [pricingProduct, setPricingProduct] = useState<Product | undefined>(undefined);
+  const [newPriceValue, setNewPriceValue] = useState<number>(0);
 
-  const categories = [
-    "all",
-    ...Array.from(new Set(products.map((p) => p.categoryName))).filter(Boolean),
-  ];
+  const { data: categoriesData = [] } = useGetCategories();
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.brand?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "all" || product.categoryName === categoryFilter;
-    const matchesStatus = 
-      statusFilter === "all" || product.status === statusFilter;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const filteredProducts = products;
 
   const mapStockToVariant = (stock: number): "success" | "warning" | "danger" | "default" => {
     if (stock === 0) return "danger";
@@ -111,11 +167,12 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
 
   const onFormSubmit = (data: any) => {
     if (editingProduct) {
+      const { price, stock, ...generalData } = data;
       updateMutation.mutate(
-        { id: editingProduct.id, data },
+        { id: editingProduct.id, data: generalData },
         {
           onSuccess: () => {
-            toast.success("Product updated successfully");
+            toast.success("Product details updated successfully");
             setIsFormOpen(false);
           },
           onError: () => toast.error("Failed to update product"),
@@ -162,6 +219,39 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
     );
   };
 
+  const handleEditPrice = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPricingProduct(product);
+    setNewPriceValue(product.price);
+    setIsPriceOpen(true);
+  };
+
+  const onPriceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pricingProduct) return;
+    if (newPriceValue <= 0) {
+      toast.error("Price must be greater than 0");
+      return;
+    }
+    if (newPriceValue === pricingProduct.price) {
+      toast.error("New price must be different from current price");
+      return;
+    }
+
+    updateMutation.mutate(
+      { id: pricingProduct.id, data: { price: newPriceValue } },
+      {
+        onSuccess: () => {
+          toast.success("Price updated successfully");
+          setIsPriceOpen(false);
+        },
+        onError: (err: any) => {
+          toast.error(err.message || "Failed to update price");
+        },
+      }
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -196,9 +286,10 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat as string} value={cat as string ?? ""}>
-                  {cat === "all" ? "All Categories" : cat as string}
+              <SelectItem value="all">All Categories</SelectItem>
+              {categoriesData.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -237,7 +328,7 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium">
-              Products List ({filteredProducts.length})
+              Products List ({totalItems})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -326,9 +417,17 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
                                   e.stopPropagation();
                                   handleEdit(product);
                                 }}
-                                title="Edit Product"
+                                title="Edit General Info"
                               >
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => handleEditPrice(product, e)}
+                                title="Adjust Price"
+                              >
+                                <DollarSign className="h-4 w-4 text-emerald-600" />
                               </Button>
                               <Button 
                                 variant="ghost" 
@@ -362,6 +461,84 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
                 })}
               </TableBody>
             </Table>
+
+            {/* Premium Pagination Section */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-muted/10">
+              {/* Left Side: Page Size Selector & Total Records */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                  Total: {totalItems} products
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page Size:
+                  </span>
+                  <input
+                    type="number"
+                    value={pageSizeInput}
+                    min={1}
+                    max={100}
+                    onChange={(e) => setPageSizeInput(e.target.value)}
+                    className="w-16 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Right Side: Prev, Quick Jump Input, and Next */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    Page
+                  </span>
+                  <input
+                    type="number"
+                    value={pageInput}
+                    min={1}
+                    max={totalPages}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                        setPage(val);
+                        setPageInput(String(val));
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(totalPages, Number(pageInput)));
+                      setPage(val);
+                      setPageInput(String(val));
+                    }}
+                    className="w-12 h-8 text-xs font-bold text-center border border-border rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                    of {totalPages}
+                  </span>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page >= totalPages}
+                  className="h-8 px-3 rounded-xl border-border bg-card hover:bg-accent text-xs font-bold uppercase tracking-wider gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -399,6 +576,39 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
               isLoading={updateInventoryMutation.isPending}
             />
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Price Adjustment Dialog */}
+      <Dialog open={isPriceOpen} onOpenChange={setIsPriceOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Product Price</DialogTitle>
+            <DialogDescription>
+              Enter a new price for <span className="font-bold text-foreground">{pricingProduct?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={onPriceSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label htmlFor="newPrice" className="text-sm font-medium">New Price ($)</label>
+              <Input
+                id="newPrice"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={newPriceValue}
+                onChange={(e) => setNewPriceValue(Number(e.target.value))}
+                placeholder="e.g. 99.99"
+                required
+              />
+              <p className="text-xs text-muted-foreground">Current price is {pricingProduct ? formatCurrency(pricingProduct.price) : "$0.00"}</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsPriceOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Updating..." : "Save Price"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

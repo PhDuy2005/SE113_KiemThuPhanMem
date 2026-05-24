@@ -13,9 +13,7 @@ export function SignUpPage() {
   const navigate = useNavigate();
   const { mutate: register, isPending: isLoading } = useRegisterMutation();
   const [formData, setFormData] = useState({
-    fullName: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -32,10 +30,11 @@ export function SignUpPage() {
     }
 
     register({
-      fullName: formData.fullName,
+      fullName: '',
       email: formData.email,
-      phone: formData.phone,
-      password: formData.password
+      phone: '',
+      password: formData.password,
+      confirmPassword: formData.confirmPassword
     }, {
       onSuccess: () => {
         toast.success('Account created successfully!');
@@ -65,28 +64,6 @@ export function SignUpPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    placeholder="John Doe"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    placeholder="+1 (555) 000-0000"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input

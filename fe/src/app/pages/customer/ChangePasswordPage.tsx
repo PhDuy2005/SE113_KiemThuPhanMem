@@ -5,8 +5,11 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { ShieldCheck, Lock, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { authService } from '../../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 export function ChangePasswordPage() {
+  const { logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -35,10 +38,20 @@ export function ChangePasswordPage() {
     }
     
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    toast.success('Password updated');
-    setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    try {
+      await authService.changePassword(
+        formData.currentPassword,
+        formData.newPassword,
+        formData.confirmPassword
+      );
+      toast.success('Password updated successfully. Logging out...');
+      setTimeout(() => {
+        logout();
+      }, 1500);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update password');
+      setIsLoading(false);
+    }
   };
 
   return (

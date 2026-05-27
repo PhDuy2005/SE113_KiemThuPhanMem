@@ -5,7 +5,7 @@
  * Backend trả về chuẩn mới (RestResponse): { statusCode: number, error: string, message: string, data: T }
  */
 
-const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080';
+const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8081';
 const BASE_URL = `${envBaseUrl}/api/v1`;
 
 // ─── Types ───────────────────────────────────────────────────

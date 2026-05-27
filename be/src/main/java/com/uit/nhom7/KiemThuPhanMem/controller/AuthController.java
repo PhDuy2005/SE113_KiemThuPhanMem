@@ -67,51 +67,9 @@ public class AuthController {
     public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDTO) {
         System.out.println(">>>AUTH MODULE: Login attempt for email: " + loginDTO.getEmail());
 
-        User currentUserDB = this.userService.handleFindByEmail(loginDTO.getEmail());
-        if (currentUserDB == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        if (this.userService.isLoginTemporarilyLocked(currentUserDB)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        if (!this.userService.matchesPassword(loginDTO.getPassword(), currentUserDB)) {
-            int failedAttempts = this.userService.increaseFailedLoginAttempts(currentUserDB);
-            if (failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        if (!this.userService.isUserActive(currentUserDB)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        UserService.AuthResult authResult = this.userService.handleLogin(loginDTO);
 
-        this.userService.resetFailedLoginAttempts(currentUserDB);
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(currentUserDB.getEmail(), null, java.util.List.of()));
-
-        ResLoginDTO resLoginDTO = new ResLoginDTO();
-        ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
-                currentUserDB.getId(),
-                currentUserDB.getEmail(),
-                currentUserDB.getUserFullName(),
-                currentUserDB.getPhoneNumber(),
-                currentUserDB.getAvatarUrl(),
-                currentUserDB.getDateOfBirth());
-        resLoginDTO.setUser(userLogin);
-
-        if (currentUserDB.getRole() != null) {
-            resLoginDTO.setRole(new ResLoginDTO.Role(
-                    currentUserDB.getRole().getId(),
-                    currentUserDB.getRole().getName()));
-        }
-
-        String accessToken = securityUtil.createAccessToken(loginDTO.getEmail(), resLoginDTO);
-        String refreshToken = this.securityUtil.createRefreshToken(loginDTO.getEmail(), resLoginDTO);
-
-        resLoginDTO.setAccessToken(accessToken);
-        this.userService.updateUserRefreshToken(refreshToken, loginDTO.getEmail());
-
-        ResponseCookie resCookies = ResponseCookie.from("refresh_token", refreshToken)
+        ResponseCookie resCookies = ResponseCookie.from("refresh_token", authResult.getRefreshToken())
                 .httpOnly(true)
                 .path("/")
                 .maxAge(refreshTokenExpiration)
@@ -120,7 +78,7 @@ public class AuthController {
         System.out.println(">>>AUTH MODULE: Login successful for email: " + loginDTO.getEmail());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, resCookies.toString())
-                .body(resLoginDTO);
+                .body(authResult.getResLoginDTO());
     }
 
     @PostMapping("/forgot-password")

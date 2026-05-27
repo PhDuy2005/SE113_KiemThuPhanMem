@@ -60,4 +60,11 @@ public interface CartItemRepository extends JpaRepository<CartItem, CartItemId> 
             where item.cart.id = :cartId
             """)
     int getTotalItemsCount(@Param("cartId") UUID cartId);
+
+    @Modifying
+    @Query("""
+            delete from CartItem item
+            where item.cart.id = :cartId
+            """)
+    int deleteByCartId(@Param("cartId") UUID cartId);
 }

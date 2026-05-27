@@ -18,7 +18,7 @@ services:
     container_name: se113-adminer
     restart: always
     ports:
-      - "8085:8080" # Chạy trên cổng 8085 để không trùng với cổng 8080 của ứng dụng Spring Boot
+      - "8085:8080" # Chạy trên cổng 8085 để không trùng với cổng 8081 của ứng dụng Spring Boot
 
 volumes:
   se113_mysql_data:

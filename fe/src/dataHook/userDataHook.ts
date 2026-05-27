@@ -9,17 +9,17 @@ export const useGetUsers = () => {
   });
 };
 
-export const useGetCustomers = () => {
+export const useGetCustomers = (pageNumber = 1, pageSize = 10) => {
   return useQuery({
-    queryKey: ['users', 'Customer'],
-    queryFn: () => userService.getCustomers(),
+    queryKey: ['users', 'Customer', pageNumber, pageSize],
+    queryFn: () => userService.getCustomers(pageNumber, pageSize),
   });
 };
 
-export const useGetStaff = () => {
+export const useGetStaff = (pageNumber = 1, pageSize = 10) => {
   return useQuery({
-    queryKey: ['users', 'staff-management'],
-    queryFn: () => userService.getStaff(),
+    queryKey: ['users', 'staff-management', pageNumber, pageSize],
+    queryFn: () => userService.getStaff(pageNumber, pageSize),
   });
 };
 

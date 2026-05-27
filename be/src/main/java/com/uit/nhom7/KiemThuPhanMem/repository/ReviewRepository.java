@@ -46,6 +46,6 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
             countQuery = "select count(review) from Review review where review.rating = :rating")
     Page<Review> findByRatingWithUserAndProduct(@Param("rating") Integer rating, Pageable pageable);
 
-    @Query("SELECT r.product.id, AVG(r.rating) FROM Review r WHERE r.product.id IN :productIds AND UPPER(r.status) = 'APPROVED' GROUP BY r.product.id")
+    @Query("SELECT r.product.id, AVG(r.rating) FROM Review r WHERE r.product.id IN :productIds AND UPPER(r.status) = 'VISIBLE' GROUP BY r.product.id")
     List<Object[]> getAverageRatingForProducts(@Param("productIds") List<UUID> productIds);
 }

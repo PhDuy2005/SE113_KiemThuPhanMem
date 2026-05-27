@@ -126,19 +126,20 @@ export function AddressBookPage() {
           </div>
         ) : (
           addresses.map((address) => (
-            <Card key={address.id} className={`border-2 transition-all rounded-2xl overflow-hidden ${address.isDefault ? 'border-primary bg-muted/30' : 'border-border/40 hover:border-border/80 bg-card'}`}>
+            <Card key={address.id} className={`border-2 transition-all rounded-2xl overflow-hidden ${address.isDefault ? 'border-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.07] shadow-sm shadow-amber-500/5' : 'border-border/40 hover:border-border/80 bg-card'}`}>
               <CardContent className="p-5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
-                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${address.isDefault ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground/50'}`}>
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center transition-all ${address.isDefault ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25' : 'bg-muted text-muted-foreground/50'}`}>
                       <MapPin className="h-5 w-5" />
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-sm uppercase tracking-tight text-foreground">Shipping Location</span>
                         {address.isDefault && (
-                          <span className="bg-primary text-primary-foreground text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest border-none">
-                            DEFAULT
+                          <span className="bg-amber-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-amber-500/20">
+                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                            Default Address
                           </span>
                         )}
                       </div>
@@ -151,9 +152,9 @@ export function AddressBookPage() {
                   <div className="flex items-center gap-2 self-end md:self-center">
                     {!address.isDefault && (
                       <Button 
-                        variant="ghost" 
+                        variant="outline" 
                         size="sm" 
-                        className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-muted"
+                        className="h-8 rounded-lg text-[10px] font-bold uppercase tracking-widest border-border text-muted-foreground hover:text-amber-600 hover:border-amber-500 hover:bg-amber-500/5 transition-all"
                         onClick={() => handleSetDefault(address.id)}
                       >
                         Set Default

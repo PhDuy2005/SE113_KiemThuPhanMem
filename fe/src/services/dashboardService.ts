@@ -30,9 +30,9 @@ interface ResRevenueReportDTO {
 
 export interface TopSellingProductDto {
   productId: string;
-  productName: string;
-  totalQuantitySold: number;
-  totalRevenue: number;
+  name: string;
+  quantity: number;
+  revenue: number;
 }
 
 export interface OrderStatusDistributionDto {
@@ -52,18 +52,18 @@ export interface ReportSummaryDto {
 }
 
 export const dashboardService = {
-  getSalesStats: async (): Promise<DashboardStats> => {
+  getSalesStats: async (startDate?: string, endDate?: string): Promise<DashboardStats> => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
-    const endDateStr = now.toISOString().split('T')[0];
+    const startDateStr = startDate || thirtyDaysAgo.toISOString().split('T')[0];
+    const endDateStr = endDate || now.toISOString().split('T')[0];
 
-    let revenueData: ResRevenueReportDTO | null = null;
+    let revenueData: any = null;
     let ordersItems: any[] = [];
 
     // 1. Fetch revenue data
     try {
-      revenueData = await api.get<ResRevenueReportDTO>(
+      revenueData = await api.get<any>(
         `/business/reports/revenue?startDate=${startDateStr}&endDate=${endDateStr}`,
       );
     } catch (err) {
@@ -73,7 +73,7 @@ export const dashboardService = {
     // 2. Fetch admin orders to compute operational queue and metrics
     try {
       const ordersPaged = await api.get<ResultPaginationDTO<any>>(
-        '/orders/staff/search?pageSize=100'
+        '/orders/staff?pageSize=100'
       );
       ordersItems = ordersPaged.result || [];
     } catch (err) {
@@ -82,7 +82,7 @@ export const dashboardService = {
 
     // Map to FE format
     const totalRevenue = revenueData?.totalRevenue || 0;
-    const totalOrders = revenueData?.totalOrders || 0;
+    const totalOrders = revenueData?.completedOrderCount || 0;
 
     // Calculate active customers count from order emails
     const uniqueCustomers = new Set(ordersItems.map(o => o.customerId));
@@ -111,25 +111,29 @@ export const dashboardService = {
       payments: []
     }));
 
-    // 3. Fallback for category distribution as API is missing
-    const categoryDistribution = [
-      { name: 'Laptops & PCs', value: 45 },
-      { name: 'Smartphones & Tablets', value: 30 },
-      { name: 'Components & Hardware', value: 15 },
-      { name: 'Accessories', value: 10 }
-    ];
-    
-    // Process revenue trend from map
-    const revenueTrendList = [];
-    if (revenueData && revenueData.revenueByDate) {
-        for (const [date, rev] of Object.entries(revenueData.revenueByDate)) {
-            revenueTrendList.push({
-                month: date,
-                revenue: rev,
-                orders: 0 // Unfortunately order count by date is not provided
-            });
-        }
+    // 3. Fetch category distribution from backend API
+    let categoryDistribution = [];
+    try {
+      const catData = await api.get<any>(
+        `/business/reports/category-distribution?startDate=${startDateStr}&endDate=${endDateStr}`
+      );
+      categoryDistribution = catData.distribution || [];
+    } catch (err) {
+      console.warn('Failed to fetch category distribution', err);
     }
+    
+    // Process revenue trend from list
+    const revenueTrendList = (revenueData?.chartData || []).map((pt: any) => {
+      const d = new Date(pt.date);
+      const month = isNaN(d.getTime()) 
+        ? pt.date 
+        : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return {
+        month,
+        revenue: pt.value,
+        orders: pt.orderCount
+      };
+    });
 
     return {
       totalRevenue,
@@ -146,34 +150,84 @@ export const dashboardService = {
     };
   },
   
-  getReportSummary: async (): Promise<ReportSummaryDto> => {
-    // The specific /reports API is missing, we assemble from other reports or return dummy.
-    // This expects to call /business/reports/best-selling-products among others
+  getReportSummary: async (startDate?: string, endDate?: string): Promise<ReportSummaryDto> => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDateStr = startDate || thirtyDaysAgo.toISOString().split('T')[0];
+    const endDateStr = endDate || now.toISOString().split('T')[0];
+
+    let revenueData: any = null;
+    let topProductsData: any = null;
+    let ordersItems: any[] = [];
+
     try {
-      const topProducts: any = await api.get(
-        `/business/reports/best-selling-products?limit=5`,
+      revenueData = await api.get<any>(
+        `/business/reports/revenue?startDate=${startDateStr}&endDate=${endDateStr}`
       );
-      return {
-        totalRevenue: 0,
-        completedOrders: 0,
-        pendingRevenue: 0,
-        topProductSharePercentage: 0,
-        topProductCategoryName: '',
-        revenueTrend: [],
-        topSellingProducts: topProducts.products || [],
-        orderStatusDistribution: [],
-      };
-    } catch {
-      return {
-        totalRevenue: 0,
-        completedOrders: 0,
-        pendingRevenue: 0,
-        topProductSharePercentage: 0,
-        topProductCategoryName: '',
-        revenueTrend: [],
-        topSellingProducts: [],
-        orderStatusDistribution: [],
-      };
+    } catch (err) {
+      console.warn(err);
     }
+
+    try {
+      topProductsData = await api.get<any>(
+        `/business/reports/best-selling-products?startDate=${startDateStr}&endDate=${endDateStr}&limit=5`
+      );
+    } catch (err) {
+      console.warn(err);
+    }
+
+    try {
+      const ordersPaged = await api.get<ResultPaginationDTO<any>>(
+        '/orders/staff?pageSize=100'
+      );
+      ordersItems = ordersPaged.result || [];
+    } catch (err) {
+      console.warn(err);
+    }
+
+    const totalRevenue = revenueData?.totalRevenue || 0;
+    const completedOrders = revenueData?.completedOrderCount || 0;
+
+    // Process top products
+    const topSellingProducts = (topProductsData?.rankingList || []).map((p: any) => ({
+      productId: p.productId,
+      name: p.productName,
+      quantity: p.totalSold,
+      revenue: p.revenue
+    }));
+
+    // Process revenue trend for chart
+    const revenueTrend = (revenueData?.chartData || []).map((pt: any) => ({
+      date: pt.date,
+      totalRevenue: pt.value,
+      orderCount: pt.orderCount
+    }));
+
+    // Process order status distribution
+    const statusCounts: Record<string, number> = {};
+    ordersItems.forEach(o => {
+      const status = String(o.status).toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    const orderStatusDistribution = Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count
+    }));
+
+    return {
+      totalRevenue,
+      completedOrders,
+      pendingRevenue: ordersItems
+        .filter(o => o.status === 'PENDING')
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      topProductSharePercentage: topSellingProducts.length > 0 && totalRevenue > 0 
+        ? Math.round((topSellingProducts[0].revenue / totalRevenue) * 100) 
+        : 0,
+      topProductCategoryName: topSellingProducts.length > 0 ? 'Best Seller' : 'N/A',
+      revenueTrend,
+      topSellingProducts,
+      orderStatusDistribution,
+    };
   }
 };

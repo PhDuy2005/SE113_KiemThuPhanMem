@@ -2,6 +2,8 @@ package com.uit.nhom7.KiemThuPhanMem.service;
 
 import java.util.Locale;
 import java.util.UUID;
+import java.util.List;
+import java.time.Instant;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -74,8 +76,8 @@ public class ShippingAddressService {
     public ResShippingAddressDTO setDefaultAddress(UUID addressId) {
         User currentUser = getCurrentActiveUser();
         ShippingAddress selectedAddress = shippingAddressRepository
-                .findByIdAndUserIdAndDeletedAtIsNull(addressId, currentUser.getId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Shipping address not found"));
+            .findByIdAndUserIdAndDeletedAtIsNull(addressId, currentUser.getId())
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Shipping address not found"));
 
         if (!selectedAddress.isDefaultAddress()) {
             shippingAddressRepository.clearDefaultByUserId(currentUser.getId());
@@ -83,6 +85,54 @@ public class ShippingAddressService {
         }
 
         return convertToDTO(shippingAddressRepository.save(selectedAddress));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ResShippingAddressDTO> getAddresses() {
+        User currentUser = getCurrentActiveUser();
+        return shippingAddressRepository.findByUserIdAndDeletedAtIsNull(currentUser.getId()).stream()
+                .map(this::convertToDTO)
+                .toList();
+    }
+
+    @Transactional
+    public ResShippingAddressDTO updateAddress(UUID addressId, ReqShippingAddressDTO request) {
+        User currentUser = getCurrentActiveUser();
+        ShippingAddress address = shippingAddressRepository
+                .findByIdAndUserIdAndDeletedAtIsNull(addressId, currentUser.getId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Shipping address not found"));
+        
+        ResolvedAddress resolvedAddress = resolveAddress(request);
+
+        address.setProvinceCode(resolvedAddress.provinceCode());
+        address.setProvince(resolvedAddress.province());
+        address.setWardCode(resolvedAddress.wardCode());
+        address.setWard(resolvedAddress.ward());
+        address.setDetail(resolvedAddress.detail());
+
+        return convertToDTO(shippingAddressRepository.save(address));
+    }
+
+    @Transactional
+    public void deleteAddress(UUID addressId) {
+        User currentUser = getCurrentActiveUser();
+        ShippingAddress address = shippingAddressRepository
+                .findByIdAndUserIdAndDeletedAtIsNull(addressId, currentUser.getId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "Shipping address not found"));
+
+        address.setDeletedAt(Instant.now());
+        shippingAddressRepository.save(address);
+
+        if (address.isDefaultAddress()) {
+            address.setDefaultAddress(false);
+            shippingAddressRepository.save(address);
+            List<ShippingAddress> remaining = shippingAddressRepository.findByUserIdAndDeletedAtIsNull(currentUser.getId());
+            if (!remaining.isEmpty()) {
+                ShippingAddress newDefault = remaining.get(0);
+                newDefault.setDefaultAddress(true);
+                shippingAddressRepository.save(newDefault);
+            }
+        }
     }
 
     private User getCurrentActiveUser() {

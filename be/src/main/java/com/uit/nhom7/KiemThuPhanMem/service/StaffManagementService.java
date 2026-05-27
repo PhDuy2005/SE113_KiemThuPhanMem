@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqCreateStaffDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResRoleDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResUserDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResultPaginationDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Role;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
 import com.uit.nhom7.KiemThuPhanMem.repository.RoleRepository;
@@ -99,6 +101,29 @@ public class StaffManagementService {
         return toUserDTO(userRepository.save(staff), MSG97);
     }
 
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO getStaff(int pageNumber, int pageSize) {
+        getCurrentBusinessAdmin();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(pageNumber - 1, 0),
+                pageSize <= 0 ? 20 : pageSize,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        org.springframework.data.domain.Page<User> staffPage = userRepository.findByRoleNameIgnoreCase(STAFF_ROLE, pageable);
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotalPages(staffPage.getTotalPages());
+        meta.setTotalItems(staffPage.getTotalElements());
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        result.setMeta(meta);
+        result.setResult(staffPage.getContent().stream()
+                .map(staff -> toUserDTO(staff, null))
+                .toList());
+        return result;
+    }
+
     private void validateCreateStaffRequest(ReqCreateStaffDTO request) {
         if (request == null
                 || request.getEmail() == null || request.getEmail().isBlank()
@@ -138,12 +163,22 @@ public class StaffManagementService {
     }
 
     private ResUserDTO toUserDTO(User user, String message) {
+        ResRoleDTO roleDTO = null;
+        if (user.getRole() != null) {
+            roleDTO = ResRoleDTO.builder()
+                    .id(user.getRole().getId())
+                    .name(user.getRole().getName())
+                    .description(user.getRole().getDescription())
+                    .active(user.getRole().isActive())
+                    .build();
+        }
         return ResUserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getUserFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .accountStatus(user.getAccountStatus())
+                .role(roleDTO)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .createdBy(user.getCreatedBy())

@@ -9,10 +9,16 @@ import org.springframework.transaction.annotation.Transactional;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Role;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.PaymentMethod;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
+import com.uit.nhom7.KiemThuPhanMem.domain.table.ShippingFeeConfig;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResProvinceDTO;
 import com.uit.nhom7.KiemThuPhanMem.repository.PaymentMethodRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.RoleRepository;
 import com.uit.nhom7.KiemThuPhanMem.repository.UserRepository;
+import com.uit.nhom7.KiemThuPhanMem.repository.ShippingFeeConfigRepository;
+import com.uit.nhom7.KiemThuPhanMem.service.AddressDataService;
 import com.uit.nhom7.KiemThuPhanMem.util.UuidV7Generator;
+
+import java.math.BigDecimal;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -24,6 +30,8 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PaymentMethodRepository paymentMethodRepository;
+    private final ShippingFeeConfigRepository shippingFeeConfigRepository;
+    private final AddressDataService addressDataService;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${techsales.admin.email:business.admin@techsales.com}")
@@ -36,10 +44,14 @@ public class DataInitializer implements CommandLineRunner {
             UserRepository userRepository,
             RoleRepository roleRepository,
             PaymentMethodRepository paymentMethodRepository,
+            ShippingFeeConfigRepository shippingFeeConfigRepository,
+            AddressDataService addressDataService,
             PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.paymentMethodRepository = paymentMethodRepository;
+        this.shippingFeeConfigRepository = shippingFeeConfigRepository;
+        this.addressDataService = addressDataService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -63,6 +75,38 @@ public class DataInitializer implements CommandLineRunner {
                         .name("Cash")
                         .type(PaymentMethod.CASH_TYPE)
                         .build()));
+
+        if (shippingFeeConfigRepository.count() == 0) {
+            for (ResProvinceDTO province : addressDataService.getProvinces()) {
+                int codeNum = 0;
+                try {
+                    codeNum = Integer.parseInt(province.getCode());
+                } catch (Exception e) {
+                    codeNum = Math.abs(province.getName().hashCode());
+                }
+                
+                BigDecimal fee;
+                if (codeNum % 4 == 0) {
+                    fee = BigDecimal.valueOf(140.00);
+                } else if (codeNum % 3 == 0) {
+                    fee = BigDecimal.valueOf(130.00);
+                } else if (codeNum % 2 == 0) {
+                    fee = BigDecimal.valueOf(120.00);
+                } else if (codeNum % 1 == 0) {
+                    fee = BigDecimal.valueOf(110.00);
+                } else {
+                    fee = BigDecimal.valueOf(100.00);
+                }
+
+                shippingFeeConfigRepository.save(ShippingFeeConfig.builder()
+                        .id(UuidV7Generator.generate())
+                        .provinceCode(province.getCode())
+                        .province(province.getName())
+                        .provinceKey(addressDataService.normalizeKey(province.getName()))
+                        .shippingFee(fee)
+                        .build());
+            }
+        }
 
         String normalizedEmail = adminEmail.trim().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {

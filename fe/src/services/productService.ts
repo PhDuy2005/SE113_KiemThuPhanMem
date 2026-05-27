@@ -1,5 +1,6 @@
 import api from '../api/apiClient';
 import { Product, ProductStatus } from '../models/ui_types/product';
+import { formatImageUrl } from '../utils/format';
 
 // ─── BE Response Types ──────────────────────────────────────
 interface ResProductDTO {
@@ -12,7 +13,19 @@ interface ResProductDTO {
   categoryId: string;
   stock: number;
   imageUrls: string[];
+  primaryImage?: string;
+  rating?: number;
   message: string;
+}
+
+interface ResultPaginationDTO<T> {
+  meta: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  result: T[];
 }
 
 // ─── Mapping BE → FE ────────────────────────────────────────
@@ -23,11 +36,11 @@ const mapProduct = (dto: ResProductDTO): Product => ({
   price: dto.price,
   brand: dto.brand,
   categoryId: dto.categoryId,
-  imageUrl: dto.imageUrls?.[0] || '',
-  images: dto.imageUrls || [],
+  imageUrl: formatImageUrl(dto.primaryImage || dto.imageUrls?.[0]),
+  images: (dto.imageUrls || []).map(formatImageUrl),
   stock: dto.stock || 0,
   status: dto.status as ProductStatus,
-  rating: 0, // BE no longer returns rating
+  rating: dto.rating || 0,
   createdAt: '',
 });
 
@@ -90,13 +103,24 @@ export const productService = {
     return result;
   },
 
-  getAdminProducts: async (params?: { keyword?: string; categoryId?: string; status?: ProductStatus; pageNumber?: number; pageSize?: number }): Promise<{ items: Product[], totalCount: number }> => {
-    // API missing in BE. Assumes an admin endpoint would be like /business/products
-    // Currently fallback to public getProducts since there is no admin listing API.
-    const products = await productService.getProducts({ search: params?.keyword });
+  getAdminProducts: async (params?: { keyword?: string; categoryId?: string; status?: ProductStatus; pageNumber?: number; pageSize?: number }): Promise<{ items: Product[], totalCount: number, totalPages: number, pageNumber: number, pageSize: number }> => {
+    const query = new URLSearchParams();
+    if (params?.keyword) query.set('keyword', params.keyword);
+    if (params?.categoryId) query.set('categoryId', params.categoryId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.pageNumber) query.set('pageNumber', params.pageNumber.toString());
+    if (params?.pageSize) query.set('pageSize', params.pageSize.toString());
+
+    const queryStr = query.toString();
+    const paged = await api.get<ResultPaginationDTO<ResProductDTO>>(
+      `/business/products${queryStr ? `?${queryStr}` : ''}`,
+    );
     return {
-      items: products,
-      totalCount: products.length
+      items: paged.result.map(mapProduct),
+      totalCount: paged.meta.totalItems,
+      totalPages: paged.meta.totalPages || 1,
+      pageNumber: paged.meta.page || 1,
+      pageSize: paged.meta.pageSize || 10,
     };
   },
 
@@ -107,7 +131,7 @@ export const productService = {
 
   getAllBrands: async (): Promise<string[]> => {
     const products = await productService.getProducts();
-    const brands = products.map(p => p.brand).filter(Boolean);
+    const brands = products.map(p => p.brand).filter((brand): brand is string => !!brand);
     return Array.from(new Set(brands));
   },
 
@@ -131,7 +155,15 @@ export const productService = {
   },
 
   updateProduct: async (id: string, productData: Partial<Product>): Promise<Product> => {
-    // NOTE: BE only supports updating price and stock. Update general info is missing.
+    // Send PUT request to update general product information
+    await api.put(`/business/products/${id}`, {
+      name: productData.name,
+      description: productData.description,
+      categoryId: productData.categoryId,
+      brand: productData.brand,
+      status: productData.status,
+    });
+
     if (productData.price !== undefined) {
       await api.patch(`/business/products/${id}/price`, { newPrice: productData.price });
     }

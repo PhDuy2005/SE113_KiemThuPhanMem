@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Product;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, UUID> {
+public interface ProductRepository extends JpaRepository<Product, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Product> {
     List<Product> findByStatusIgnoreCase(String status);
 
     Optional<Product> findByIdAndStatusIgnoreCase(UUID id, String status);

@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardService } from '../services/dashboardService';
 
-export const useGetSalesStats = () => {
+export const useGetSalesStats = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['salesStats'],
-    queryFn: () => dashboardService.getSalesStats(),
+    queryKey: ['salesStats', startDate, endDate],
+    queryFn: () => dashboardService.getSalesStats(startDate, endDate),
   });
 };
 
-export const useGetReportSummary = () => {
+export const useGetReportSummary = (startDate?: string, endDate?: string) => {
   return useQuery({
-    queryKey: ['reportSummary'],
-    queryFn: () => dashboardService.getReportSummary(),
+    queryKey: ['reportSummary', startDate, endDate],
+    queryFn: () => dashboardService.getReportSummary(startDate, endDate),
   });
 };

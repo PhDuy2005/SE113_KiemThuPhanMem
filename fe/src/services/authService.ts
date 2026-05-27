@@ -32,9 +32,10 @@ interface UserGetAccountDto {
 // ─── Role Mapping ───────────────────────────────────────────
 const mapRole = (roleName: string | undefined): UserRole => {
   if (!roleName) return 'Customer';
-  if (roleName === 'Technical Admin' || roleName === 'Admin') return 'Technical Admin';
-  if (roleName === 'Business Admin' || roleName === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
-  if (roleName === 'Staff') return 'Staff';
+  const norm = roleName.trim().toUpperCase();
+  if (norm === 'TECHNICAL ADMIN' || norm === 'ADMIN' || norm === 'TECHNICAL_ADMIN') return 'Technical Admin';
+  if (norm === 'BUSINESS ADMIN' || norm === 'BUSINESS_ADMIN') return 'BUSINESS_ADMIN';
+  if (norm === 'STAFF') return 'Staff';
   return 'Customer';
 };
 

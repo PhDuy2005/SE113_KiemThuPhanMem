@@ -11,22 +11,40 @@ import {
   CheckCircle2, 
   Clock,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  Star
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useGetSalesStats } from '../../../dataHook/dashboardDataHook';
+import { useGetAllReviews } from '../../../dataHook/reviewDataHook';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 
 export function SalesDashboardPage() {
   const navigate = useNavigate();
   const { data: stats, isLoading, isError } = useGetSalesStats();
+  const { data: reviewsPaged, isLoading: isReviewsLoading } = useGetAllReviews();
+  const reviewsData = reviewsPaged?.items || [];
 
   useEffect(() => {
     if (isError) {
       toast.error('Failed to load operational protocols');
     }
   }, [isError]);
+
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-3 w-3 ${
+              star <= rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/20'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
 
   const getStatusVariant = (status: string) => {
     switch (status.toUpperCase()) {
@@ -100,80 +118,98 @@ export function SalesDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Order Volume Chart instead of Revenue */}
-        <Card className="lg:col-span-2 border-border shadow-sm rounded-2xl overflow-hidden bg-card">
-          <CardHeader className="border-b border-border bg-muted/20">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest">Protocol Volume Trend</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={stats.revenueTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 700 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 700 }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar 
-                  dataKey="orders" 
-                  fill="#000" 
-                  radius={[6, 6, 0, 0]}
-                  barSize={32}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Quick Review Stats or Recent Orders */}
-        <Card className="border-border shadow-sm rounded-2xl overflow-hidden bg-card">
-          <CardHeader className="border-b border-border bg-muted/20 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest">Operational Queue</CardTitle>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Order Summary (One Half) */}
+        <Card className="border-border shadow-sm rounded-2xl overflow-hidden bg-card flex flex-col">
+          <CardHeader className="border-b border-border bg-muted/20 flex flex-row items-center justify-between py-4">
+            <div>
+              <CardTitle className="text-xs font-bold uppercase tracking-widest">Recent Orders</CardTitle>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase mt-0.5">Real-time purchase activity</p>
+            </div>
             <button 
               onClick={() => navigate('/sales/orders')}
               className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
             >
-              Management
+              Manage Orders
             </button>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 flex-1">
             <div className="divide-y divide-border">
-              {stats.recentOrders.map(order => (
-                <div key={order.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-tight">{order.id}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase">{order.customerName}</p>
+              {stats.recentOrders && stats.recentOrders.length > 0 ? (
+                stats.recentOrders.slice(0, 5).map(order => (
+                  <div key={order.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-tight text-foreground">{order.id}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase">{order.customerName}</span>
+                        <span className="text-[9px] text-muted-foreground/60">•</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">{new Date(order.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <Badge variant={getStatusVariant(order.status)} className="text-[9px] px-2 py-0.5 font-bold uppercase tracking-wider">
+                      {order.status}
+                    </Badge>
                   </div>
-                  <Badge variant={getStatusVariant(order.status)} className="text-[9px] px-2 py-0.5 font-bold uppercase tracking-wider">
-                    {order.status}
-                  </Badge>
+                ))
+              ) : (
+                <div className="p-8 text-center text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                  No recent orders found
                 </div>
-              ))}
+              )}
             </div>
-            {/* Added Quick Link to Reviews */}
-            <div className="p-4 bg-muted/20 border-t border-border">
-               <button 
-                onClick={() => navigate('/sales/reviews')}
-                className="w-full flex items-center justify-between bg-card p-3 rounded-xl ring-1 ring-border hover:ring-primary transition-all group"
-               >
-                 <div className="flex items-center gap-3">
-                    <MessageSquare className="h-4 w-4 text-primary" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Review Moderation</span>
-                 </div>
-                 <Badge variant="pending" className="text-[9px]">4 Pending</Badge>
-               </button>
+          </CardContent>
+        </Card>
+
+        {/* Review Summary (Other Half) */}
+        <Card className="border-border shadow-sm rounded-2xl overflow-hidden bg-card flex flex-col">
+          <CardHeader className="border-b border-border bg-muted/20 flex flex-row items-center justify-between py-4">
+            <div>
+              <CardTitle className="text-xs font-bold uppercase tracking-widest">Customer Feedback</CardTitle>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase mt-0.5">Recent reviews & ratings</p>
             </div>
+            <button 
+              onClick={() => navigate('/sales/reviews')}
+              className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+            >
+              Moderate Reviews
+            </button>
+          </CardHeader>
+          <CardContent className="p-0 flex-1">
+            {isReviewsLoading ? (
+              <div className="flex items-center justify-center p-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : reviewsData && reviewsData.length > 0 ? (
+              <div className="divide-y divide-border">
+                {reviewsData.slice(0, 5).map(review => (
+                  <div key={review.id} className="p-4 hover:bg-muted/30 transition-colors flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-foreground">{review.userName}</span>
+                        <span className="text-[9px] text-muted-foreground/60">•</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">{review.productName}</span>
+                      </div>
+                      {renderStars(review.rating)}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 italic font-medium">
+                      "{review.comment}"
+                    </p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-[9px] text-muted-foreground/60 uppercase font-bold">
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </span>
+                      <Badge variant={review.status === 'VISIBLE' ? 'success' : 'danger'} className="text-[8px] px-1.5 py-0 font-bold uppercase tracking-wider">
+                        {review.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                No recent reviews found
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

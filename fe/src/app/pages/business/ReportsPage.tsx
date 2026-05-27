@@ -37,11 +37,20 @@ import {
 import { useGetAdminOrders } from "../../../dataHook/orderDataHook";
 import { useGetReportSummary } from "../../../dataHook/dashboardDataHook";
 import { OrderStatus } from "../../../models/ui_types/order";
+import { formatCurrency } from "../../../utils/format";
 
 export function ReportsPage() {
   const navigate = useNavigate();
-  const { data: orders = [], isLoading: ordersLoading } = useGetAdminOrders();
-  const { data: reportSummary, isLoading: reportLoading } = useGetReportSummary();
+  const { data, isLoading: ordersLoading } = useGetAdminOrders();
+  const orders = data?.items || [];
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  const [startDate, setStartDate] = useState(thirtyDaysAgo.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(now.toISOString().split('T')[0]);
+
+  const { data: reportSummary, isLoading: reportLoading } = useGetReportSummary(startDate, endDate);
   const [dateRange, setDateRange] = useState("30d");
 
   // --- MAP VALUES FROM BACKEND API REPORT SUMMARY ---
@@ -51,10 +60,16 @@ export function ReportsPage() {
   const topProductSharePercentage = reportSummary?.topProductSharePercentage ?? 0;
   const topProductCategoryName = reportSummary?.topProductCategoryName ?? "N/A";
   
-  const revenueTrendData = reportSummary?.revenueTrend?.map(t => ({
-    name: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
-    revenue: t.totalRevenue
-  })) ?? [];
+  const revenueTrendData = reportSummary?.revenueTrend?.map(t => {
+    const d = new Date(t.date);
+    const name = isNaN(d.getTime()) 
+      ? t.date 
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return {
+      name,
+      revenue: t.totalRevenue
+    };
+  }) ?? [];
 
   const topProductsList = reportSummary?.topSellingProducts ?? [];
 
@@ -89,19 +104,47 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Business Reports</h1>
-          <p className="text-muted-foreground">Comprehensive insights into sales, products and operations</p>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight uppercase">Business Reports</h1>
+        <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-60">Fulfillment & Operations Ledger</p>
+      </div>
+
+      {/* Prominent Date Range Selector Banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Subtle decorative background glows */}
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl pointer-events-none"></div>
+        <div className="absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-blue-500/10 blur-2xl pointer-events-none"></div>
+
+        <div className="flex items-center gap-3 z-10">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Calendar className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-wider text-primary">Analysis Time Horizon</h3>
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Query transactions and sales volume across custom protocols</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="h-9 px-3">
-            <Calendar className="mr-2 h-4 w-4" />
-            Last 30 Days
-          </Badge>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
-          </Button>
+
+        <div className="flex flex-wrap items-center gap-3 z-10">
+          <div className="flex items-center gap-2 bg-background border border-primary/20 focus-within:ring-2 focus-within:ring-primary/20 transition-all px-4 h-11 rounded-xl shadow-inner">
+            <span className="text-[9px] font-black uppercase text-primary/85 tracking-widest">From</span>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent border-none text-xs font-bold focus:outline-none focus:ring-0 text-foreground cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 bg-background border border-primary/20 focus-within:ring-2 focus-within:ring-primary/20 transition-all px-4 h-11 rounded-xl shadow-inner">
+            <span className="text-[9px] font-black uppercase text-primary/85 tracking-widest">To</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent border-none text-xs font-bold focus:outline-none focus:ring-0 text-foreground cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
@@ -112,7 +155,7 @@ export function ReportsPage() {
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
             <div className="flex items-center text-xs text-green-500 mt-1">
               <ArrowUpRight className="mr-1 h-3 w-3" />
               +12.5% from last month
@@ -138,7 +181,7 @@ export function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : "0"}
+              {formatCurrency(totalOrders > 0 ? (totalRevenue / totalOrders) : 0)}
             </div>
             <div className="flex items-center text-xs text-red-500 mt-1">
               <ArrowDownRight className="mr-1 h-3 w-3" />
@@ -255,7 +298,7 @@ export function ReportsPage() {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(order.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="font-bold">${order.totalAmount.toLocaleString()}</TableCell>
+                      <TableCell className="font-bold">{formatCurrency(order.totalAmount)}</TableCell>
                       <TableCell>
                         <Badge 
                           variant={getStatusVariant(order.status) as any}
@@ -304,7 +347,7 @@ export function ReportsPage() {
                     <TableRow key={p.productId}>
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell className="text-center">{p.quantity}</TableCell>
-                      <TableCell className="text-right">${p.revenue.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(p.revenue)}</TableCell>
                       <TableCell className="text-right">
                         <Badge variant="success" className="gap-1">
                           <TrendingUp className="h-3 w-3" /> High
@@ -341,7 +384,7 @@ export function ReportsPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground)/0.2)" />
                   <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}
                     itemStyle={{ color: 'hsl(var(--primary))' }}

@@ -1,11 +1,14 @@
 package com.uit.nhom7.KiemThuPhanMem.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import com.uit.nhom7.KiemThuPhanMem.domain.table.PaymentMethod;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqOnlinePaymentDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResOnlinePaymentDTO;
 import com.uit.nhom7.KiemThuPhanMem.service.PaymentService;
@@ -20,6 +23,12 @@ public class PaymentController {
 
     public PaymentController(PaymentService paymentService) {
         this.paymentService = paymentService;
+    }
+
+    @GetMapping("/methods")
+    @ApiMessage("Lay danh sach phuong thuc thanh toan")
+    public ResponseEntity<List<PaymentMethod>> getPaymentMethods() {
+        return ResponseEntity.ok(paymentService.getPaymentMethods());
     }
 
     @PostMapping("/online")

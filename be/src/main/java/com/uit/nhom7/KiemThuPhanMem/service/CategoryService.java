@@ -52,6 +52,13 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
+    public List<ResCategoryDTO> getPublicCategories() {
+        return categoryRepository.findAll().stream()
+                .map(category -> toDTO(category, null))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<ResCategoryDTO> getReplacementCategories(UUID targetId) {
         getCurrentBusinessAdmin();
         categoryRepository.findById(targetId)

@@ -35,14 +35,14 @@ const roleNavItems: Record<string, NavItem[]> = {
     { icon: <ShoppingCart className="h-5 w-5" />, label: 'Cart', path: '/customer/cart' },
     { icon: <FileText className="h-5 w-5" />, label: 'Orders', path: '/customer/orders' },
     { icon: <MapPin className="h-5 w-5" />, label: 'Addresses', path: '/customer/addresses' },
-    { icon: <UserCircle className="h-5 w-5" />, label: 'Profile', path: '/customer/profile' },
+    { icon: <UserCircle className="h-5 w-5" />, label: 'Profile', path: '/profile' },
   ],
   Staff: [
     { icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard', path: '/sales' },
     { icon: <ShoppingCart className="h-5 w-5" />, label: 'Orders', path: '/sales/orders' },
     { icon: <MessageSquare className="h-5 w-5" />, label: 'Reviews', path: '/sales/reviews' },
     { icon: <Package className="h-5 w-5" />, label: 'Products', path: '/sales/products' },
-    { icon: <Users className="h-5 w-5" />, label: 'Customers', path: '/sales/customers' },
+    { icon: <UserCircle className="h-5 w-5" />, label: 'Profile', path: '/profile' },
   ],
   BUSINESS_ADMIN: [
     { icon: <LayoutDashboard className="h-5 w-5" />, label: 'Dashboard', path: '/business' },
@@ -52,7 +52,8 @@ const roleNavItems: Record<string, NavItem[]> = {
     { icon: <UserCircle className="h-5 w-5" />, label: 'Staff Management', path: '/business/staff' },
     { icon: <FileText className="h-5 w-5" />, label: 'Reports', path: '/business/reports' },
     { icon: <Ticket className="h-5 w-5" />, label: 'Vouchers', path: '/business/vouchers' },
-    { icon: <UserCircle className="h-5 w-5" />, label: 'Profile', path: '/business/profile' },
+    { icon: <Settings className="h-5 w-5" />, label: 'Settings', path: '/business/settings' },
+    { icon: <UserCircle className="h-5 w-5" />, label: 'Profile', path: '/profile' },
   ],
   'Technical Admin': [
     { icon: <Users className="h-5 w-5" />, label: 'User Management', path: '/technical/users' },

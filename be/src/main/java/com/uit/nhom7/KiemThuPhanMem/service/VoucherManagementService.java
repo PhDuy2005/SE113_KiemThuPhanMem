@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqCreateVoucherDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResVoucherDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.responseDTO.ResultPaginationDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.User;
 import com.uit.nhom7.KiemThuPhanMem.domain.table.Voucher;
 import com.uit.nhom7.KiemThuPhanMem.repository.UserRepository;
@@ -73,6 +74,53 @@ public class VoucherManagementService {
         voucher.setActive(false);
         voucher.setStatus(Voucher.STOPPED_STATUS);
         return toDTO(voucherRepository.save(voucher), MSG92);
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO getAllVouchersForAdmin(int pageNumber, int pageSize) {
+        getCurrentBusinessAdmin();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(pageNumber - 1, 0),
+                pageSize <= 0 ? 20 : pageSize,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        org.springframework.data.domain.Page<Voucher> vouchers = voucherRepository.findAll(pageable);
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotalPages(vouchers.getTotalPages());
+        meta.setTotalItems(vouchers.getTotalElements());
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        result.setMeta(meta);
+        result.setResult(vouchers.getContent().stream()
+                .map(voucher -> toDTO(voucher, null))
+                .toList());
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public ResultPaginationDTO getPublicVouchers(int pageNumber, int pageSize) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(pageNumber - 1, 0),
+                pageSize <= 0 ? 20 : pageSize,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        org.springframework.data.domain.Page<Voucher> vouchers = voucherRepository
+                .findByActiveTrueAndStatusIgnoreCaseAndEndDateAfter(Voucher.ACTIVE_STATUS, Instant.now(), pageable);
+
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotalPages(vouchers.getTotalPages());
+        meta.setTotalItems(vouchers.getTotalElements());
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        result.setMeta(meta);
+        result.setResult(vouchers.getContent().stream()
+                .filter(v -> v.getMaxUsage() == null || v.getUsedCount() == null || v.getUsedCount() < v.getMaxUsage())
+                .map(voucher -> toDTO(voucher, null))
+                .toList());
+        return result;
     }
 
     private void validateCreateVoucherRequest(ReqCreateVoucherDTO request) {

@@ -20,7 +20,7 @@ export const formatImageUrl = (imageUrl?: string | null): string => {
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     return imageUrl;
   }
-  const base = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080';
+  const base = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8081';
   try {
     return new URL(imageUrl, base).toString();
   } catch (e) {

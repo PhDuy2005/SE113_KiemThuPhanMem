@@ -35,7 +35,7 @@ export function OrderDetailPage() {
     if (confirm('Are you sure you want to cancel this order?')) {
       cancelOrder(id || '', {
         onSuccess: () => toast.success('Order cancelled'),
-        onError: () => toast.error('Failed to cancel order')
+        onError: (err: any) => toast.error(err?.message || 'Failed to cancel order')
       });
     }
   };

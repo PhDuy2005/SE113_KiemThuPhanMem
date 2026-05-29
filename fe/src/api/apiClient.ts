@@ -78,6 +78,19 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       errorMessage = JSON.stringify(result.message);
     }
 
+    // Tự động bóc tách mảng lỗi validation của Spring Boot (nếu có)
+    if (result.errors && Array.isArray(result.errors)) {
+      const fieldErrors = result.errors.map((e: any) => e.defaultMessage || e.message || e).filter(Boolean);
+      if (fieldErrors.length > 0) {
+        errorMessage = fieldErrors.join('\n');
+      }
+    } else if (result.errors && typeof result.errors === 'object') {
+      const msgs = Object.values(result.errors).flat();
+      if (msgs.length > 0) {
+        errorMessage = msgs.join('\n');
+      }
+    }
+
     throw new ApiError(
       errorMessage,
       response.status,

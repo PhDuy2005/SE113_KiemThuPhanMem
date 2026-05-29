@@ -159,7 +159,7 @@ export function CustomerManagementPage() {
               setSelectedUser(updated);
             }
           },
-          onError: () => toast.error("Failed to update account"),
+          onError: (err: any) => toast.error(err?.message || "Failed to update account"),
         }
       );
     } else {
@@ -168,7 +168,7 @@ export function CustomerManagementPage() {
           toast.success("Customer account created");
           setIsFormOpen(false);
         },
-        onError: () => toast.error("Failed to create account"),
+        onError: (err: any) => toast.error(err?.message || "Failed to create account"),
       });
     }
   };
@@ -182,7 +182,7 @@ export function CustomerManagementPage() {
         toast.success(`Account ${isBlocked ? 'blocked' : 'activated'} successfully`);
         if (selectedUser?.id === user.id) setSelectedUser(updated);
       },
-      onError: () => toast.error("Failed to update account status"),
+      onError: (err: any) => toast.error(err?.message || "Failed to update account status"),
     });
   };
 

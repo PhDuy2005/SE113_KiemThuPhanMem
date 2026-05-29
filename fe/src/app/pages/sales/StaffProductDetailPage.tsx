@@ -62,8 +62,8 @@ export function StaffProductDetailPage() {
         toast.success(`Review visibility updated`);
         setConfirmingMod(null);
       },
-      onError: () => {
-        toast.error('Failed to update review status');
+      onError: (err: any) => {
+        toast.error(err?.message || 'Failed to update review status');
         setConfirmingMod(null);
       }
     });

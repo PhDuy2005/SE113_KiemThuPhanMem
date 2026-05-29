@@ -55,7 +55,7 @@ export function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
-      toast.error('Full name is required');
+      toast.error(error?.message || 'Full name is required');
       return;
     }
 

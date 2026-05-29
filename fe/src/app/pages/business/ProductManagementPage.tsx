@@ -175,7 +175,7 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
             toast.success("Product details updated successfully");
             setIsFormOpen(false);
           },
-          onError: () => toast.error("Failed to update product"),
+          onError: (err: any) => toast.error(err?.message || "Failed to update product"),
         }
       );
     } else {
@@ -184,7 +184,7 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
           toast.success("Product created successfully");
           setIsFormOpen(false);
         },
-        onError: () => toast.error("Failed to create product"),
+        onError: (err: any) => toast.error(err?.message || "Failed to create product"),
       });
     }
   };
@@ -195,7 +195,7 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
       onSuccess: () => {
         toast.success(`Product discontinued successfully`);
       },
-      onError: () => toast.error("Failed to update product status"),
+      onError: (err: any) => toast.error(err?.message || "Failed to update product status"),
     });
   };
 
@@ -214,7 +214,7 @@ export function ProductManagementPage({ readOnly = false }: ProductManagementPag
           toast.success("Stock adjusted successfully");
           setIsStockOpen(false);
         },
-        onError: () => toast.error("Failed to adjust stock"),
+        onError: (err: any) => toast.error(err?.message || "Failed to adjust stock"),
       }
     );
   };

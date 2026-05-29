@@ -179,7 +179,7 @@ export function CheckoutPage() {
         }
         handleSuccess();
       },
-      onError: () => toast.error('Failed to place order')
+      onError: (err: any) => toast.error(err?.message || 'Failed to place order')
     });
   };
 

@@ -88,7 +88,7 @@ export function ShoppingCartPage() {
         setSelectedProductIds(prev => prev.filter(id => id !== productId));
         toast.success('Item removed');
       },
-      onError: () => toast.error('Failed to remove item')
+      onError: (err: any) => toast.error(err?.message || 'Failed to remove item')
     });
   };
 
@@ -111,8 +111,8 @@ export function ShoppingCartPage() {
           }
         });
       },
-      onError: () => {
-        toast.error('Failed to place order');
+      onError: (err: any) => {
+        toast.error(err?.message || 'Failed to place order');
       }
     });
   };

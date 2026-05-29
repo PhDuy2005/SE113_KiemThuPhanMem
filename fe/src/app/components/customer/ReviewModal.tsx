@@ -51,8 +51,8 @@ export function ReviewModal({
         setComment('');
         setRating(5);
       },
-      onError: () => {
-        toast.error('Failed to submit review');
+      onError: (err: any) => {
+        toast.error(err?.message || 'Failed to submit review');
       }
     });
   };

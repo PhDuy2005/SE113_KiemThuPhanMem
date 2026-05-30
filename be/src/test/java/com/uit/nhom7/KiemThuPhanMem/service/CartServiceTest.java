@@ -3,6 +3,8 @@ package com.uit.nhom7.KiemThuPhanMem.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -126,6 +128,71 @@ class CartServiceTest {
     }
 
     @Test
+    void addItemShouldRejectWhenUserSessionIsInvalid() {
+        Fixture fixture = new Fixture();
+        authenticate("missing@example.com");
+        when(fixture.userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.addItem(ReqAddCartItemDTO.builder()
+                .productId(UUID.randomUUID())
+                .quantity(1)
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("User session is invalid")
+                .extracting("status")
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void addItemShouldRejectWhenUserAccountIsInactive() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("pending@example.com")
+                .password("encoded")
+                .accountStatus("PENDING")
+                .build();
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> fixture.cartService.addItem(ReqAddCartItemDTO.builder()
+                .productId(UUID.randomUUID())
+                .quantity(1)
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("User account is not active")
+                .extracting("status")
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void addItemShouldRejectWhenProductIsNotFound() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        User user = activeUser(userId);
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.productRepository.findByIdAndStatusIgnoreCase(productId, Product.ACTIVE_STATUS))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.addItem(ReqAddCartItemDTO.builder()
+                .productId(productId)
+                .quantity(1)
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Product not found")
+                .extracting("status")
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
     void updateItemQuantityShouldSetNewQuantityAndRecalculateTotal() {
         Fixture fixture = new Fixture();
         UUID userId = UUID.randomUUID();
@@ -202,6 +269,41 @@ class CartServiceTest {
     }
 
     @Test
+    void updateItemQuantityShouldDeleteItemWhenNoStockIsAvailable() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID cartId = UUID.randomUUID();
+        User user = activeUser(userId);
+        Product product = activeProduct(productId);
+        Cart cart = Cart.builder().id(cartId).user(user).build();
+        CartItem existingItem = CartItem.builder()
+                .cart(cart)
+                .product(product)
+                .quantity(2)
+                .build();
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(fixture.cartItemRepository.findByCartIdAndProductId(cartId, productId))
+                .thenReturn(Optional.of(existingItem));
+        when(fixture.inventoryRepository.findById(productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.updateItemQuantity(
+                productId,
+                ReqUpdateCartItemDTO.builder().newQuantity(5).oldQuantity(2).build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Insufficient stock. Available quantity: 0")
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(fixture.cartItemRepository).delete(existingItem);
+        verify(fixture.cartItemRepository, never()).save(existingItem);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
     void removeItemShouldDeleteCartItemAndRecalculateCart() {
         Fixture fixture = new Fixture();
         UUID userId = UUID.randomUUID();
@@ -235,6 +337,84 @@ class CartServiceTest {
         assertThat(result.getQuantity()).isZero();
         assertThat(result.getCartBadgeCount()).isZero();
         assertThat(result.getTotalCartPrice()).isEqualByComparingTo(BigDecimal.ZERO);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void removeItemShouldRejectWhenCartDoesNotExist() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        User user = activeUser(userId);
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.removeItem(productId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cart not found")
+                .extracting("status")
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void removeItemShouldRejectWhenCartItemDoesNotExist() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID cartId = UUID.randomUUID();
+        User user = activeUser(userId);
+        Cart cart = Cart.builder().id(cartId).user(user).build();
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(fixture.cartItemRepository.findByCartIdAndProductId(cartId, productId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.removeItem(productId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cart item not found")
+                .extracting("status")
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void clearCartShouldDeleteAllItemsForCurrentUsersCart() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        UUID cartId = UUID.randomUUID();
+        User user = activeUser(userId);
+        Cart cart = Cart.builder().id(cartId).user(user).build();
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+
+        fixture.cartService.clearCart();
+
+        verify(fixture.cartItemRepository).deleteByCartId(cartId);
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void clearCartShouldRejectWhenCartDoesNotExist() {
+        Fixture fixture = new Fixture();
+        UUID userId = UUID.randomUUID();
+        User user = activeUser(userId);
+
+        authenticate(user.getEmail());
+        when(fixture.userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(fixture.cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fixture.cartService.clearCart())
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cart not found")
+                .extracting("status")
+                .isEqualTo(HttpStatus.NOT_FOUND);
         SecurityContextHolder.clearContext();
     }
 

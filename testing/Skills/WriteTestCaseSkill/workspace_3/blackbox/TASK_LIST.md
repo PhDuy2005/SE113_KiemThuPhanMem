@@ -3,7 +3,7 @@
 Dựa trên tài liệu SRS, đây là 25 module cốt lõi có giao diện tương tác người dùng quan trọng nhất, bao phủ toàn bộ luồng từ khách hàng đến quản trị viên, cần được ưu tiên viết UI Test:
 
 ## 1. Module Xác thực & Tài khoản (Authentication & Profile)
-- [ ] 1. **UC-01 - Đăng ký (Sign Up)**: Test form đăng ký, validate định dạng email/password.
+- [x] 1. **UC-01 - Đăng ký (Sign Up)**: Test form đăng ký, validate định dạng email/password.
 - [ ] 2. **UC-02 - Đăng nhập (Sign In)**: Test form đăng nhập, giới hạn số lần sai, hiển thị lỗi.
 - [ ] 3. **UC-03 - Quên mật khẩu (Forget Password)**: Test luồng gửi email khôi phục.
 - [ ] 4. **UC-04 - Cập nhật thông tin cá nhân**: Test form cập nhật User Profile.

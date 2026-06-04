@@ -19,7 +19,7 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Value("${techsales.app.base-url:http://localhost:8080}")
+    @Value("${techsales.app.base-url:http://localhost:8081}")
     private String appBaseUrl;
 
     public EmailService(JavaMailSender mailSender) {

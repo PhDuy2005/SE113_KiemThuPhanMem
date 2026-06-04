@@ -44,8 +44,8 @@ export function ReviewManagementPage() {
         toast.success(`Review protocol updated to ${confirmingMod.status}`);
         setConfirmingMod(null);
       },
-      onError: () => {
-        toast.error('Failed to update review status');
+      onError: (err: any) => {
+        toast.error(err?.message || 'Failed to update review status');
         setConfirmingMod(null);
       }
     });

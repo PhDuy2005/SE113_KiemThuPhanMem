@@ -111,8 +111,8 @@ export function VoucherManagementPage() {
         onSuccess: () => {
           toast.success("Voucher deactivated successfully");
         },
-        onError: () => {
-          toast.error("Failed to deactivate voucher");
+        onError: (err: any) => {
+        toast.error(err?.message || "Failed to deactivate voucher");
         },
       });
     }

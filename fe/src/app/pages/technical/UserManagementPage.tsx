@@ -44,7 +44,7 @@ export function UserManagementPage() {
     if (window.confirm(`Are you sure you want to ${action} this user?`)) {
       toggleStatus({ id, status: currentStatus }, {
         onSuccess: () => toast.success(`User ${action}ed successfully`),
-        onError: () => toast.error(`Failed to ${action} user`)
+        onError: (err: any) => toast.error(err?.message || `Failed to ${action} user`)
       });
     }
   };

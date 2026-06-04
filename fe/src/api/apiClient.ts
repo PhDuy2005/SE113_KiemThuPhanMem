@@ -5,7 +5,7 @@
  * Backend trả về chuẩn mới (RestResponse): { statusCode: number, error: string, message: string, data: T }
  */
 
-const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8080';
+const envBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8081';
 const BASE_URL = `${envBaseUrl}/api/v1`;
 
 // ─── Types ───────────────────────────────────────────────────
@@ -76,6 +76,19 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       errorMessage = result.message.join('; ');
     } else if (typeof result.message === 'object' && result.message !== null) {
       errorMessage = JSON.stringify(result.message);
+    }
+
+    // Tự động bóc tách mảng lỗi validation của Spring Boot (nếu có)
+    if (result.errors && Array.isArray(result.errors)) {
+      const fieldErrors = result.errors.map((e: any) => e.defaultMessage || e.message || e).filter(Boolean);
+      if (fieldErrors.length > 0) {
+        errorMessage = fieldErrors.join('\n');
+      }
+    } else if (result.errors && typeof result.errors === 'object') {
+      const msgs = Object.values(result.errors).flat();
+      if (msgs.length > 0) {
+        errorMessage = msgs.join('\n');
+      }
     }
 
     throw new ApiError(

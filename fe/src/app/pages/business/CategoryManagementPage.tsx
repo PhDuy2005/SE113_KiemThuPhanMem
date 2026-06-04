@@ -97,7 +97,7 @@ export function CategoryManagementPage() {
             toast.success("Category updated successfully");
             setIsFormOpen(false);
           },
-          onError: () => toast.error("Failed to update category"),
+          onError: (err: any) => toast.error(err?.message || "Failed to update category"),
         }
       );
     } else {
@@ -106,7 +106,7 @@ export function CategoryManagementPage() {
           toast.success("Category created successfully");
           setIsFormOpen(false);
         },
-        onError: () => toast.error("Failed to create category"),
+        onError: (err: any) => toast.error(err?.message || "Failed to create category"),
       });
     }
   };
@@ -120,7 +120,7 @@ export function CategoryManagementPage() {
             toast.success(`Category "${deletingCategory.name}" removed and products migrated.`);
             setIsDeleteOpen(false);
           },
-          onError: () => toast.error("Failed to delete category"),
+          onError: (err: any) => toast.error(err?.message || "Failed to delete category"),
         }
       );
     } else {

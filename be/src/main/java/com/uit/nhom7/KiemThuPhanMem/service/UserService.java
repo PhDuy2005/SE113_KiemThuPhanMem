@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqChangePasswordDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqForgotPasswordDTO;
+import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqLoginDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqRegisterDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqResetPasswordDTO;
 import com.uit.nhom7.KiemThuPhanMem.domain.requestDTO.ReqUpdateProfileDTO;
@@ -47,16 +50,19 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final SecurityUtil securityUtil;
 
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
-            EmailService emailService) {
+            EmailService emailService,
+            SecurityUtil securityUtil) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.securityUtil = securityUtil;
     }
 
     /**
@@ -126,6 +132,73 @@ public class UserService {
     @Transactional(readOnly = true)
     public User handleFindByEmail(String email) {
         return userRepository.findByEmail(email).orElse(null);
+    }
+
+    public static class AuthResult {
+        private final ResLoginDTO resLoginDTO;
+        private final String refreshToken;
+
+        public AuthResult(ResLoginDTO resLoginDTO, String refreshToken) {
+            this.resLoginDTO = resLoginDTO;
+            this.refreshToken = refreshToken;
+        }
+
+        public ResLoginDTO getResLoginDTO() {
+            return resLoginDTO;
+        }
+
+        public String getRefreshToken() {
+            return refreshToken;
+        }
+    }
+
+    @Transactional
+    public AuthResult handleLogin(ReqLoginDTO loginDTO) {
+        User currentUserDB = handleFindByEmail(loginDTO.getEmail());
+        if (currentUserDB == null) {
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "Email or password incorrect");
+        }
+        if (isLoginTemporarilyLocked(currentUserDB)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Account is temporarily locked");
+        }
+        if (!matchesPassword(loginDTO.getPassword(), currentUserDB)) {
+            int failedAttempts = increaseFailedLoginAttempts(currentUserDB);
+            if (failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                throw new BusinessException(HttpStatus.FORBIDDEN, "Account locked due to too many failed attempts");
+            }
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "Email or password incorrect");
+        }
+        if (!isUserActive(currentUserDB)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "Account is not active");
+        }
+
+        resetFailedLoginAttempts(currentUserDB);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(currentUserDB.getEmail(), null, java.util.List.of()));
+
+        ResLoginDTO resLoginDTO = new ResLoginDTO();
+        ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
+                currentUserDB.getId(),
+                currentUserDB.getEmail(),
+                currentUserDB.getUserFullName(),
+                currentUserDB.getPhoneNumber(),
+                currentUserDB.getAvatarUrl(),
+                currentUserDB.getDateOfBirth());
+        resLoginDTO.setUser(userLogin);
+
+        if (currentUserDB.getRole() != null) {
+            resLoginDTO.setRole(new ResLoginDTO.Role(
+                    currentUserDB.getRole().getId(),
+                    currentUserDB.getRole().getName()));
+        }
+
+        String accessToken = securityUtil.createAccessToken(loginDTO.getEmail(), resLoginDTO);
+        String refreshToken = securityUtil.createRefreshToken(loginDTO.getEmail(), resLoginDTO);
+
+        resLoginDTO.setAccessToken(accessToken);
+        updateUserRefreshToken(refreshToken, loginDTO.getEmail());
+
+        return new AuthResult(resLoginDTO, refreshToken);
     }
 
     @Transactional

@@ -170,7 +170,7 @@ export function StaffManagementPage() {
               setSelectedUser(updated);
             }
           },
-          onError: () => toast.error("Failed to update staff account"),
+          onError: (err: any) => toast.error(err?.message || "Failed to update staff account"),
         }
       );
     } else {
@@ -179,7 +179,7 @@ export function StaffManagementPage() {
           toast.success("Staff account created");
           setIsFormOpen(false);
         },
-        onError: () => toast.error("Failed to create staff account"),
+        onError: (err: any) => toast.error(err?.message || "Failed to create staff account"),
       });
     }
   };
@@ -197,7 +197,7 @@ export function StaffManagementPage() {
         toast.success(`Staff account ${isBlocked ? 'blocked' : 'activated'}`);
         if (selectedUser?.id === user.id) setSelectedUser(updated);
       },
-      onError: () => toast.error("Failed to update account status"),
+      onError: (err: any) => toast.error(err?.message || "Failed to update account status"),
     });
   };
 
